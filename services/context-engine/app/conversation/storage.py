@@ -41,8 +41,16 @@ class ConversationStore:
                 session.raw_source_path = self.save_raw_transcript(session.id, raw_content)
 
             # Extract intelligence and facts
-            facts = self._extractor.extract_facts(session)
-            session.extracted_facts = facts
+            extracted = self._extractor.extract_facts(session)
+            if session.extracted_facts:
+                existing_ids = {f.id for f in session.extracted_facts}
+                for ef in extracted:
+                    if ef.id not in existing_ids:
+                        session.extracted_facts.append(ef)
+            else:
+                session.extracted_facts = extracted
+
+            facts = session.extracted_facts
 
             # Set summary on session
             for f in facts:
