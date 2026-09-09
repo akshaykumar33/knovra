@@ -11,6 +11,7 @@ import {
   FileCode2,
   Users,
   Search,
+  BookOpen,
 } from 'lucide-react';
 import { ADRS, ADR } from '../../lib/data';
 
@@ -38,83 +39,83 @@ export default function DecisionTimelineDemo() {
   const getStatusBadge = (status: ADR['status']) => {
     switch (status) {
       case 'accepted':
-        return <span className="badge badge-ok">ACCEPTED</span>;
+        return <span className="stripe-badge stripe-badge-green">ACCEPTED</span>;
       case 'superseded':
-        return <span className="badge badge-warn">SUPERSEDED</span>;
+        return <span className="stripe-badge stripe-badge-amber">SUPERSEDED</span>;
       case 'proposed':
-        return <span className="badge badge-cyan">PROPOSED</span>;
+        return <span className="stripe-badge stripe-badge-blue">PROPOSED</span>;
       default:
-        return <span className="badge">{status}</span>;
+        return <span className="stripe-badge">{status}</span>;
     }
   };
 
   return (
-    <div className="glass-card" style={{ padding: '1.75rem' }}>
+    <div className="stripe-card" style={{ padding: '1.75rem' }}>
+      {/* Header & Filter Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
             <span
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '8px',
-                backgroundColor: 'rgba(139, 92, 246, 0.15)',
+                width: 26,
+                height: 26,
+                borderRadius: '6px',
+                background: 'rgba(139, 92, 246, 0.12)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--accent-purple)',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
               }}
             >
-              <GitPullRequest size={16} />
+              <GitPullRequest size={14} />
             </span>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Architectural Decision Records (ADRs) & Supersession Timeline
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#ffffff' }}>
+              Architectural Decision Records (ADR) Explorer
             </h3>
-            <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
+            <span className="stripe-badge stripe-badge-purple" style={{ fontSize: '0.68rem' }}>
               Invariant #3
             </span>
           </div>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '650px' }}>
-            Permanent institutional memory for AI agents. Decisions are immutable once approved; new realities create superseding decisions rather than silently rewriting history.
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '620px', lineHeight: 1.5 }}>
+            Institutional architecture memory for AI agents. Decisions are immutable once approved; architectural evolution creates superseding records rather than rewriting history.
           </p>
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-tertiary)', padding: '2px', borderRadius: 'var(--radius-md)' }}>
-            {(['all', 'accepted', 'superseded'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: '0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: filter === f ? 'var(--accent-blue)' : 'transparent',
-                  color: filter === f ? '#ffffff' : 'var(--text-secondary)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  textTransform: 'capitalize',
-                }}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-canvas)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
+          {(['all', 'accepted', 'superseded'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: filter === f ? 'var(--bg-secondary)' : 'transparent',
+                color: filter === f ? '#ffffff' : 'var(--text-muted)',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+                textTransform: 'capitalize',
+              }}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Main Timeline Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.6fr', gap: '1.5rem', alignItems: 'start' }}>
-        {/* Timeline List */}
+      {/* Main Two-Column Layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: '1.5rem', alignItems: 'start' }}>
+        {/* Left Column: ADR List */}
         <div
           style={{
             display: 'grid',
-            gap: '0.75rem',
+            gap: '0.5rem',
             maxHeight: '480px',
             overflowY: 'auto',
-            paddingRight: '0.5rem',
+            paddingRight: '0.35rem',
           }}
         >
           {filteredAdrs.map((adr) => {
@@ -124,32 +125,33 @@ export default function DecisionTimelineDemo() {
                 key={adr.id}
                 onClick={() => setSelectedAdrId(adr.id)}
                 style={{
-                  padding: '1rem',
+                  padding: '0.85rem 1rem',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-tertiary)',
-                  border: `1.5px solid ${isSelected ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-primary)',
+                  border: `1px solid ${isSelected ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+                  borderTop: isSelected ? '1px solid var(--accent-blue)' : '1px solid var(--border-highlight)',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
                     {adr.id}
                   </span>
                   {getStatusBadge(adr.status)}
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#ffffff', marginBottom: '0.3rem' }}>
                   {adr.title}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                   <span>{adr.date}</span>
                   {adr.supersededBy && (
                     <span style={{ color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      <ArrowRight size={12} /> {adr.supersededBy}
+                      <ArrowRight size={11} /> {adr.supersededBy}
                     </span>
                   )}
                   {adr.supersedes && (
-                    <span style={{ color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span style={{ color: 'var(--accent-purple)' }}>
                       Supersedes {adr.supersedes}
                     </span>
                   )}
@@ -159,23 +161,24 @@ export default function DecisionTimelineDemo() {
           })}
         </div>
 
-        {/* Detailed ADR Inspector */}
+        {/* Right Column: Detailed ADR Reader */}
         <div
           style={{
-            backgroundColor: 'var(--bg-tertiary)',
+            backgroundColor: 'var(--bg-primary)',
             border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.5rem',
+            borderTop: '1px solid var(--border-highlight)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1.25rem',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
               {selectedAdr.id}
             </span>
             {getStatusBadge(selectedAdr.status)}
           </div>
 
-          <h4 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+          <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.75rem' }}>
             {selectedAdr.title}
           </h4>
 
@@ -183,21 +186,21 @@ export default function DecisionTimelineDemo() {
           {selectedAdr.supersededBy && (
             <div
               style={{
-                marginBottom: '1rem',
+                marginBottom: '0.85rem',
                 padding: '0.6rem 0.85rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                fontSize: '0.8rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                fontSize: '0.78rem',
                 color: 'var(--accent-amber)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.45rem',
               }}
             >
-              <AlertCircle size={15} />
+              <AlertCircle size={14} />
               <span>
-                Superseded by <strong>{selectedAdr.supersededBy}</strong>. This record is retained for provenance and legacy agent context.
+                Superseded by <strong>{selectedAdr.supersededBy}</strong>. Retained for historical provenance.
               </span>
             </div>
           )}
@@ -205,68 +208,68 @@ export default function DecisionTimelineDemo() {
           {selectedAdr.supersedes && (
             <div
               style={{
-                marginBottom: '1rem',
+                marginBottom: '0.85rem',
                 padding: '0.6rem 0.85rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                fontSize: '0.8rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'rgba(139, 92, 246, 0.08)',
+                border: '1px solid rgba(139, 92, 246, 0.25)',
+                fontSize: '0.78rem',
                 color: 'var(--accent-purple)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
+                gap: '0.45rem',
               }}
             >
-              <Sparkles size={15} />
+              <Sparkles size={14} />
               <span>
-                Supersedes previous architecture decision <strong>{selectedAdr.supersedes}</strong>.
+                Supersedes previous architecture choice <strong>{selectedAdr.supersedes}</strong>.
               </span>
             </div>
           )}
 
-          <div style={{ display: 'grid', gap: '0.85rem', fontSize: '0.85rem' }}>
+          <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.82rem' }}>
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
                 Context & Problem Statement
               </div>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                 {selectedAdr.context}
               </p>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
                 Decision Outcome
               </div>
-              <p style={{ color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.5 }}>
+              <p style={{ color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.55 }}>
                 {selectedAdr.decision}
               </p>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
                 Consequences & Invariants
               </div>
-              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                 {selectedAdr.consequences}
               </p>
             </div>
 
-            {/* Affected Files */}
+            {/* Impacted Code Paths */}
             <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.04em' }}>
                 Impacted Code Paths ({selectedAdr.affectedFiles.length})
               </div>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                 {selectedAdr.affectedFiles.map((file) => (
                   <span
                     key={file}
                     style={{
-                      fontSize: '0.75rem',
+                      fontSize: '0.72rem',
                       fontFamily: 'var(--font-mono)',
-                      padding: '3px 8px',
+                      padding: '2px 7px',
                       borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-secondary)',
+                      backgroundColor: 'var(--bg-canvas)',
                       color: 'var(--accent-blue)',
                       border: '1px solid var(--border-default)',
                     }}

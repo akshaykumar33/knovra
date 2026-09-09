@@ -77,40 +77,41 @@ const PROTOCOLS = [
 
 export default function ArchitecturePage() {
   return (
-    <div style={{ display: 'grid', gap: '2rem' }}>
+    <div style={{ display: 'grid', gap: '2.5rem' }}>
       {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
           <span
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: '8px',
-              backgroundColor: 'rgba(139, 92, 246, 0.15)',
+              width: 28,
+              height: 28,
+              borderRadius: '6px',
+              backgroundColor: 'rgba(139, 92, 246, 0.12)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--accent-purple)',
+              border: '1px solid rgba(139, 92, 246, 0.25)',
             }}
           >
-            <Layers size={18} />
+            <Layers size={16} />
           </span>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            System Architecture & Golden Invariants
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>
+            System Architecture & Invariants
           </h1>
-          <span className="badge badge-purple">7 Core Invariants</span>
+          <span className="stripe-badge stripe-badge-purple">7 Core Invariants</span>
         </div>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          Foundational guarantees, communication topology, and polyglot subsystem interaction matrix.
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Foundational guarantees, polyglot communication topology, and subsystem interaction matrix.
         </p>
       </div>
 
-      {/* Interactive Topology Graph Demo */}
+      {/* Interactive Topology Graph Showcase */}
       <ArchitectureGraphDemo />
 
       {/* 7 Golden Invariants Grid */}
       <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
+        <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', marginBottom: '1rem', letterSpacing: '-0.02em' }}>
           Seven Golden Architectural Invariants
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
@@ -119,9 +120,9 @@ export default function ArchitecturePage() {
             return (
               <div
                 key={inv.num}
-                className="glass-card"
+                className="stripe-card"
                 style={{
-                  padding: '1.5rem',
+                  padding: '1.35rem',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
@@ -131,10 +132,10 @@ export default function ArchitecturePage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-tertiary)',
+                        width: 32,
+                        height: 32,
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--bg-primary)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -142,16 +143,16 @@ export default function ArchitecturePage() {
                         border: '1px solid var(--border-default)',
                       }}
                     >
-                      <Icon size={18} />
+                      <Icon size={16} />
                     </div>
-                    <span className="badge" style={{ fontSize: '0.7rem', color: inv.color }}>
+                    <span className="stripe-badge" style={{ color: inv.color, backgroundColor: 'var(--bg-canvas)' }}>
                       Invariant #{inv.num}
                     </span>
                   </div>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.4rem' }}>
                     {inv.title}
                   </h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                     {inv.description}
                   </p>
                 </div>
@@ -161,19 +162,19 @@ export default function ArchitecturePage() {
         </div>
       </div>
 
-      {/* Communication Protocol Matrix */}
-      <div className="glass-card" style={{ padding: '1.75rem' }}>
-        <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem' }}>
-          Subsystem Inter-Process Communication (IPC) Matrix
+      {/* IPC Matrix Table */}
+      <div className="stripe-card" style={{ padding: '1.5rem' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '1rem' }}>
+          Inter-Process Communication (IPC) Matrix
         </h2>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-default)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                <th style={{ padding: '10px 12px' }}>Subsystem Channel</th>
-                <th style={{ padding: '10px 12px' }}>Protocol</th>
-                <th style={{ padding: '10px 12px' }}>Interface / Port</th>
-                <th style={{ padding: '10px 12px' }}>Operational Purpose</th>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Subsystem Channel</th>
+                <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Protocol</th>
+                <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Interface / Port</th>
+                <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem' }}>Operational Purpose</th>
               </tr>
             </thead>
             <tbody>
@@ -181,16 +182,16 @@ export default function ArchitecturePage() {
                 <tr
                   key={idx}
                   style={{
-                    borderBottom: '1px solid var(--border-default)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.01)',
                   }}
                 >
-                  <td style={{ padding: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{proto.subsystem}</td>
-                  <td style={{ padding: '12px' }}>
-                    <span className="badge badge-blue">{proto.protocol}</span>
+                  <td style={{ padding: '10px 12px', fontWeight: 600, color: '#ffffff' }}>{proto.subsystem}</td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <span className="stripe-badge stripe-badge-blue">{proto.protocol}</span>
                   </td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>{proto.port}</td>
-                  <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{proto.purpose}</td>
+                  <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>{proto.port}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{proto.purpose}</td>
                 </tr>
               ))}
             </tbody>

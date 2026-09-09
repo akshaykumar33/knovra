@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Info,
 } from 'lucide-react';
-import { SYSTEM_SERVICES } from '../../lib/data';
 
 interface ArchNode {
   id: string;
@@ -24,7 +23,7 @@ interface ArchNode {
   role: string;
   port: number | string;
   protocols: string[];
-  connections: string[];
+  latency: string;
   invariant?: string;
 }
 
@@ -37,7 +36,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'Visual product dashboard, graph explorer & agent showcase',
     port: 3000,
     protocols: ['HTTP/REST', 'JSON'],
-    connections: ['api', 'runtime', 'context-engine'],
+    latency: '0.4ms',
     invariant: 'Invariant #7: Local-first offline UX resilience',
   },
   {
@@ -48,7 +47,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'SaaS tenancy, organization management & external webhooks',
     port: 4000,
     protocols: ['HTTP/REST', 'JWT'],
-    connections: ['postgres', 'redis', 'nats'],
+    latency: '1.2ms',
   },
   {
     id: 'runtime',
@@ -58,7 +57,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'Local agent daemon, MCP Gateway & file event orchestrator',
     port: 8080,
     protocols: ['MCP JSON-RPC', 'gRPC Client', 'HTTP/REST'],
-    connections: ['code-indexer', 'context-engine', 'nats'],
+    latency: '0.8ms',
     invariant: 'Invariant #2: Agent access strictly mediated via MCP Gateway',
   },
   {
@@ -69,7 +68,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'Fast incremental AST parser, symbol extractor & call graph builder',
     port: 50051,
     protocols: ['gRPC Server', 'Protobuf'],
-    connections: ['neo4j'],
+    latency: '0.2ms',
     invariant: 'Invariant #4: Incremental file change indexing without full re-scans',
   },
   {
@@ -80,7 +79,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'Semantic memory, vector embeddings, ADR graph & Context Planning',
     port: 8000,
     protocols: ['HTTP/REST', 'MCP Tool Provider'],
-    connections: ['postgres', 'neo4j', 'redis'],
+    latency: '2.1ms',
     invariant: 'Invariant #1: Knovra owns durable context, agents consume it',
   },
   {
@@ -91,7 +90,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'Source of transactional truth, symbol vectors & session embeddings',
     port: 5432,
     protocols: ['TCP', 'Postgres Wire'],
-    connections: [],
+    latency: '1.4ms',
   },
   {
     id: 'neo4j',
@@ -101,7 +100,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'Call hierarchy, file dependency graphs & ADR supersession DAG',
     port: 7687,
     protocols: ['Bolt', 'Cypher'],
-    connections: [],
+    latency: '2.8ms',
   },
   {
     id: 'nats',
@@ -111,7 +110,7 @@ const ARCH_NODES: ArchNode[] = [
     role: 'High-throughput event streaming for file change & agent events',
     port: 4222,
     protocols: ['NATS Protocol'],
-    connections: [],
+    latency: '0.3ms',
   },
 ];
 
@@ -128,56 +127,52 @@ export default function ArchitectureGraphDemo() {
     return true;
   });
 
-  const getLayerColor = (layer: string) => {
+  const getLayerBadge = (layer: string) => {
     switch (layer) {
-      case 'frontend':
-        return { text: 'var(--accent-blue)', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)' };
-      case 'runtime':
-        return { text: 'var(--accent-cyan)', bg: 'rgba(6, 182, 212, 0.12)', border: 'rgba(6, 182, 212, 0.3)' };
-      case 'indexer':
-        return { text: 'var(--accent-amber)', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)' };
-      case 'engine':
-        return { text: 'var(--accent-purple)', bg: 'rgba(139, 92, 246, 0.12)', border: 'rgba(139, 92, 246, 0.3)' };
-      case 'storage':
-        return { text: 'var(--status-ok)', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.3)' };
-      default:
-        return { text: 'var(--text-primary)', bg: 'var(--bg-tertiary)', border: 'var(--border-default)' };
+      case 'frontend': return 'stripe-badge-blue';
+      case 'runtime': return 'stripe-badge-blue';
+      case 'indexer': return 'stripe-badge-amber';
+      case 'engine': return 'stripe-badge-purple';
+      case 'storage': return 'stripe-badge-green';
+      default: return 'stripe-badge';
     }
   };
 
   return (
-    <div className="glass-card" style={{ padding: '1.75rem' }}>
+    <div className="stripe-card" style={{ padding: '1.75rem' }}>
+      {/* Header & Filter Controls */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
             <span
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '8px',
-                backgroundColor: 'rgba(6, 182, 212, 0.15)',
+                width: 26,
+                height: 26,
+                borderRadius: '6px',
+                background: 'rgba(6, 182, 212, 0.12)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--accent-cyan)',
+                border: '1px solid rgba(6, 182, 212, 0.25)',
               }}
             >
-              <Network size={16} />
+              <Network size={14} />
             </span>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Subsystem Topology & Architecture Graph
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#ffffff' }}>
+              Subsystem Topology & IPC Matrix
             </h3>
-            <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
-              Multi-Service Grid
+            <span className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.68rem' }}>
+              Polyglot Grid
             </span>
           </div>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', maxWidth: '650px' }}>
-            Knovra is built as a polyglot system: Go for daemon & MCP, Rust for fast AST indexing, Python for vector intelligence, and Next.js for visual control.
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '620px', lineHeight: 1.5 }}>
+            Knovra operates as a high-speed polyglot mesh: Go daemon & MCP gateway, Rust Tree-sitter AST engine, Python semantic brain, and Next.js visual surface.
           </p>
         </div>
 
-        {/* Filter Tabs */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {/* Filter Pills */}
+        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-canvas)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
           {[
             { id: 'all', label: 'All Subsystems' },
             { id: 'compute', label: 'Engines & Services' },
@@ -187,12 +182,12 @@ export default function ArchitectureGraphDemo() {
               key={tab.id}
               onClick={() => setActiveFilter(tab.id)}
               style={{
-                padding: '6px 12px',
-                fontSize: '0.8rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: activeFilter === tab.id ? 'var(--accent-blue)' : 'var(--bg-tertiary)',
-                color: activeFilter === tab.id ? '#ffffff' : 'var(--text-secondary)',
-                border: '1px solid var(--border-default)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: activeFilter === tab.id ? 'var(--bg-secondary)' : 'transparent',
+                color: activeFilter === tab.id ? '#ffffff' : 'var(--text-muted)',
+                border: 'none',
                 cursor: 'pointer',
                 fontWeight: 600,
               }}
@@ -203,63 +198,55 @@ export default function ArchitectureGraphDemo() {
         </div>
       </div>
 
-      {/* Main Graph Grid & Inspector */}
+      {/* Grid Layout: Service Cards + Details Drawer */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1.8fr) 1.2fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Node Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '0.85rem' }}>
           {filteredNodes.map((node) => {
             const isSelected = selectedNodeId === node.id;
-            const style = getLayerColor(node.layer);
             return (
               <div
                 key={node.id}
                 onClick={() => setSelectedNodeId(node.id)}
                 style={{
-                  padding: '1.1rem',
+                  padding: '1rem',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-tertiary)',
-                  border: `1.5px solid ${isSelected ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : 'var(--bg-primary)',
+                  border: `1px solid ${isSelected ? 'var(--accent-blue)' : 'var(--border-default)'}`,
+                  borderTop: isSelected ? '1px solid var(--accent-blue)' : '1px solid var(--border-highlight)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  boxShadow: isSelected ? '0 0 16px rgba(59, 130, 246, 0.2)' : 'none',
+                  boxShadow: isSelected ? '0 0 16px rgba(59, 130, 246, 0.15)' : 'none',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      backgroundColor: style.bg,
-                      color: style.text,
-                      border: `1px solid ${style.border}`,
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                  <span className={`stripe-badge ${getLayerBadge(node.layer)}`}>
                     {node.layer}
                   </span>
-                  <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                    :{node.port}
+                  <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--status-ok)', fontWeight: 600 }}>
+                    {node.latency}
                   </span>
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#ffffff', marginBottom: '0.25rem' }}>
                   {node.name}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
                   {node.technology}
                 </div>
+
                 <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                   {node.protocols.map((p) => (
                     <span
                       key={p}
                       style={{
                         fontSize: '0.65rem',
+                        fontFamily: 'var(--font-mono)',
                         padding: '1px 5px',
                         borderRadius: '3px',
-                        backgroundColor: 'var(--bg-secondary)',
+                        backgroundColor: 'var(--bg-canvas)',
                         color: 'var(--text-muted)',
-                        border: '1px solid var(--border-default)',
+                        border: '1px solid var(--border-subtle)',
                       }}
                     >
                       {p}
@@ -271,53 +258,58 @@ export default function ArchitectureGraphDemo() {
           })}
         </div>
 
-        {/* Selected Node Inspector Drawer */}
+        {/* Selected Node Inspector */}
         <div
           style={{
-            backgroundColor: 'var(--bg-tertiary)',
+            backgroundColor: 'var(--bg-primary)',
             border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.5rem',
+            borderTop: '1px solid var(--border-highlight)',
+            borderRadius: 'var(--radius-md)',
+            padding: '1.25rem',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Subsystem Inspector
             </span>
-            <span className="badge badge-ok" style={{ fontSize: '0.7rem' }}>ONLINE</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span className="pulsing-dot" />
+              <span style={{ fontSize: '0.7rem', color: 'var(--status-ok)', fontWeight: 600 }}>ONLINE</span>
+            </div>
           </div>
 
-          <h4 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+          <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.2rem' }}>
             {selectedNode.name}
           </h4>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
             {selectedNode.role}
           </p>
 
-          <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '1rem', display: 'grid', gap: '0.85rem' }}>
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem', display: 'grid', gap: '0.75rem' }}>
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Technology Stack</div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedNode.technology}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Technology Stack</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedNode.technology}</div>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Listening Port & Interface</div>
-              <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
-                0.0.0.0:{selectedNode.port}
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Listening Interface & Port</div>
+              <div style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+                0.0.0.0:{selectedNode.port} ({selectedNode.latency} p99)
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Supported Protocols</div>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Supported Wire Protocols</div>
+              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                 {selectedNode.protocols.map((proto) => (
                   <span
                     key={proto}
                     style={{
-                      fontSize: '0.75rem',
-                      padding: '2px 8px',
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono)',
+                      padding: '2px 7px',
                       borderRadius: 'var(--radius-sm)',
-                      backgroundColor: 'var(--bg-secondary)',
+                      backgroundColor: 'var(--bg-canvas)',
                       color: 'var(--accent-blue)',
                       border: '1px solid var(--border-default)',
                     }}
@@ -331,18 +323,18 @@ export default function ArchitectureGraphDemo() {
             {selectedNode.invariant && (
               <div
                 style={{
-                  marginTop: '0.5rem',
-                  padding: '0.75rem',
-                  borderRadius: 'var(--radius-md)',
+                  marginTop: '0.4rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-sm)',
                   backgroundColor: 'rgba(59, 130, 246, 0.08)',
                   border: '1px solid rgba(59, 130, 246, 0.25)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem', color: 'var(--accent-blue)', fontSize: '0.75rem', fontWeight: 600 }}>
-                  <Info size={14} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.2rem', color: 'var(--accent-blue)', fontSize: '0.72rem', fontWeight: 600 }}>
+                  <Info size={13} />
                   Architectural Guarantee
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   {selectedNode.invariant}
                 </div>
               </div>

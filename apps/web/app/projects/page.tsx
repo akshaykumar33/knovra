@@ -4,14 +4,12 @@ import React, { useState } from 'react';
 import {
   FolderGit2,
   Search,
-  Filter,
   RefreshCw,
   GitBranch,
   Layers,
   Code2,
   Calendar,
   CheckCircle2,
-  Clock,
   Plus,
 } from 'lucide-react';
 import { WORKSPACES, Workspace } from '../../lib/data';
@@ -42,46 +40,47 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div style={{ display: 'grid', gap: '1.75rem' }}>
+    <div style={{ display: 'grid', gap: '2rem' }}>
       {/* Page Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
             <span
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: '8px',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                width: 28,
+                height: 28,
+                borderRadius: '6px',
+                backgroundColor: 'rgba(59, 130, 246, 0.12)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--accent-blue)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
               }}
             >
-              <FolderGit2 size={18} />
+              <FolderGit2 size={16} />
             </span>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Projects & Workspaces
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>
+              Managed Workspaces
             </h1>
-            <span className="badge badge-blue">{WORKSPACES.length} Registered</span>
+            <span className="stripe-badge stripe-badge-blue">{WORKSPACES.length} Modules</span>
           </div>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            Managed repositories, multi-module monorepos, and autonomous agent workspace bindings.
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Active monorepo workspaces, AST symbol indices, and autonomous agent workspace bindings.
           </p>
         </div>
 
-        <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
-          <Plus size={16} />
-          Register Workspace
+        <button className="btn-stripe-primary">
+          <Plus size={15} />
+          <span>Register Workspace</span>
         </button>
       </div>
 
       {/* Filter and Search Bar */}
       <div
-        className="glass-card"
+        className="stripe-panel"
         style={{
-          padding: '1rem',
+          padding: '0.85rem 1rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -90,7 +89,7 @@ export default function ProjectsPage() {
         }}
       >
         <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
-          <Search size={15} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-muted)' }} />
+          <Search size={14} style={{ position: 'absolute', left: '10px', top: '8px', color: 'var(--text-muted)' }} />
           <input
             type="text"
             placeholder="Search workspaces by name, path, or language..."
@@ -98,11 +97,11 @@ export default function ProjectsPage() {
             onChange={(e) => setSearch(e.target.value)}
             style={{
               width: '100%',
-              padding: '6px 12px 6px 32px',
-              fontSize: '0.85rem',
-              backgroundColor: 'var(--bg-tertiary)',
+              padding: '6px 12px 6px 30px',
+              fontSize: '0.82rem',
+              backgroundColor: 'var(--bg-canvas)',
               border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-sm)',
               color: 'var(--text-primary)',
               outline: 'none',
             }}
@@ -110,18 +109,18 @@ export default function ProjectsPage() {
         </div>
 
         {/* Status Pills */}
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-canvas)', padding: '2px', borderRadius: 'var(--radius-sm)' }}>
           {(['all', 'active', 'indexed'] as const).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
               style={{
-                padding: '5px 12px',
-                fontSize: '0.78rem',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: statusFilter === status ? 'var(--accent-blue)' : 'var(--bg-tertiary)',
-                color: statusFilter === status ? '#ffffff' : 'var(--text-secondary)',
-                border: '1px solid var(--border-default)',
+                backgroundColor: statusFilter === status ? 'var(--bg-secondary)' : 'transparent',
+                color: statusFilter === status ? '#ffffff' : 'var(--text-muted)',
+                border: 'none',
                 cursor: 'pointer',
                 fontWeight: 600,
                 textTransform: 'capitalize',
@@ -140,77 +139,66 @@ export default function ProjectsPage() {
           return (
             <div
               key={ws.id}
-              className="glass-card"
+              className="stripe-card"
               style={{
-                padding: '1.5rem',
+                padding: '1.35rem',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
               }}
             >
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Layers size={18} color="var(--accent-cyan)" />
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <Layers size={16} color="var(--accent-cyan)" />
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
                       {ws.name}
                     </h3>
                   </div>
-                  <span className={`badge ${ws.status === 'active' ? 'badge-ok' : 'badge-purple'}`}>
+                  <span className={`stripe-badge ${ws.status === 'active' ? 'stripe-badge-green' : 'stripe-badge-purple'}`}>
                     {ws.status}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '1rem', wordBreak: 'break-all' }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '1rem', wordBreak: 'break-all' }}>
                   {ws.path}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', fontSize: '0.82rem' }}>
-                  <div style={{ backgroundColor: 'var(--bg-tertiary)', padding: '8px 10px', borderRadius: 'var(--radius-sm)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Symbols</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '1rem', fontSize: '0.8rem' }}>
+                  <div style={{ backgroundColor: 'var(--bg-primary)', padding: '7px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Symbols</div>
                     <div style={{ fontWeight: 700, color: 'var(--accent-blue)', fontFamily: 'var(--font-mono)' }}>
                       {ws.symbolsCount.toLocaleString()}
                     </div>
                   </div>
-                  <div style={{ backgroundColor: 'var(--bg-tertiary)', padding: '8px 10px', borderRadius: 'var(--radius-sm)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Language</div>
+                  <div style={{ backgroundColor: 'var(--bg-primary)', padding: '7px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Language</div>
                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {ws.primaryLanguage}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                  <GitBranch size={13} />
-                  <span>Branch: <strong>{ws.activeBranch}</strong></span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                  <GitBranch size={12} />
+                  <span>Branch: <strong style={{ color: 'var(--text-secondary)' }}>{ws.activeBranch}</strong></span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  <Calendar size={13} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  <Calendar size={12} />
                   <span>Last Indexed: {ws.lastIndexed}</span>
                 </div>
               </div>
 
-              {/* Action */}
-              <div style={{ borderTop: '1px solid var(--border-default)', marginTop: '1.25rem', paddingTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+              {/* Action Button */}
+              <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '1.15rem', paddingTop: '0.85rem', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   onClick={() => handleReindex(ws.id)}
                   disabled={isIndexing}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '5px 12px',
-                    fontSize: '0.78rem',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border-default)',
-                    color: isIndexing ? 'var(--accent-blue)' : 'var(--text-secondary)',
-                    cursor: isIndexing ? 'wait' : 'pointer',
-                    fontWeight: 600,
-                  }}
+                  className="btn-stripe-secondary"
+                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                 >
-                  <RefreshCw size={12} className={isIndexing ? 'animate-spin' : ''} />
-                  {isIndexing ? 'Indexing AST...' : 'Incremental Reindex'}
+                  <RefreshCw size={11} className={isIndexing ? 'animate-spin' : ''} />
+                  <span>{isIndexing ? 'Indexing AST...' : 'Incremental Reindex'}</span>
                 </button>
               </div>
             </div>

@@ -189,18 +189,18 @@ export default function RepositoryPage() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                padding: '5px 8px',
+                padding: '4px 8px',
                 paddingLeft: `${depth * 14 + 8}px`,
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
                 color: 'var(--text-primary)',
-                fontSize: '0.85rem',
+                fontSize: '0.8rem',
                 fontWeight: 600,
                 userSelect: 'none',
               }}
             >
-              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              {isExpanded ? <FolderOpen size={15} color="var(--accent-blue)" /> : <Folder size={15} color="var(--accent-blue)" />}
+              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              {isExpanded ? <FolderOpen size={14} color="var(--accent-blue)" /> : <Folder size={14} color="var(--accent-blue)" />}
               <span>{node.name}</span>
             </div>
             {isExpanded && node.children && (
@@ -218,17 +218,17 @@ export default function RepositoryPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.4rem',
-            padding: '5px 8px',
+            padding: '4px 8px',
             paddingLeft: `${depth * 14 + 20}px`,
             borderRadius: 'var(--radius-sm)',
             cursor: 'pointer',
-            backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+            backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'transparent',
             color: isSelected ? 'var(--accent-blue)' : 'var(--text-secondary)',
-            fontSize: '0.82rem',
+            fontSize: '0.78rem',
             fontWeight: isSelected ? 600 : 400,
           }}
         >
-          <FileCode2 size={14} />
+          <FileCode2 size={13} />
           <span>{node.name}</span>
         </div>
       );
@@ -236,30 +236,31 @@ export default function RepositoryPage() {
   };
 
   return (
-    <div style={{ display: 'grid', gap: '1.75rem' }}>
+    <div style={{ display: 'grid', gap: '2rem' }}>
       {/* Header */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
           <span
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: '8px',
-              backgroundColor: 'rgba(59, 130, 246, 0.15)',
+              width: 28,
+              height: 28,
+              borderRadius: '6px',
+              backgroundColor: 'rgba(59, 130, 246, 0.12)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--accent-blue)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
             }}
           >
-            <FileCode2 size={18} />
+            <FileCode2 size={16} />
           </span>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>
             Repository Tree & AST Symbol Inspector
           </h1>
-          <span className="badge badge-ok">Tree-Sitter Synced</span>
+          <span className="stripe-badge stripe-badge-green">Tree-Sitter Synced</span>
         </div>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           Explore indexed source trees, parsed AST symbol declarations, and architectural provenance links.
         </p>
       </div>
@@ -268,14 +269,14 @@ export default function RepositoryPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 1fr) 2fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Left: Tree Explorer */}
         <div
-          className="glass-card"
+          className="stripe-card"
           style={{
             padding: '1.25rem',
             maxHeight: '620px',
             overflowY: 'auto',
           }}
         >
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.04em' }}>
             Monorepo Hierarchy
           </div>
           {renderTree(FILE_TREE)}
@@ -283,9 +284,9 @@ export default function RepositoryPage() {
 
         {/* Right: File AST & Provenance Inspector */}
         <div
-          className="glass-card"
+          className="stripe-card"
           style={{
-            padding: '1.75rem',
+            padding: '1.5rem',
             minHeight: '400px',
           }}
         >
@@ -293,35 +294,35 @@ export default function RepositoryPage() {
             <div style={{ display: 'grid', gap: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <div>
-                  <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                  <div style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
                     {selectedFile.path}
                   </div>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>
                     {selectedFile.name}
                   </h2>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <span className="badge badge-purple">{selectedFile.language}</span>
-                  <span className="badge badge-blue">{selectedFile.lines} lines</span>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <span className="stripe-badge stripe-badge-purple">{selectedFile.language}</span>
+                  <span className="stripe-badge stripe-badge-blue">{selectedFile.lines} lines</span>
                 </div>
               </div>
 
               {/* Commit Provenance */}
               <div
                 style={{
-                  backgroundColor: 'var(--bg-tertiary)',
-                  padding: '0.85rem 1rem',
-                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--bg-primary)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-default)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.75rem',
+                  gap: '0.65rem',
                 }}
               >
-                <GitCommit size={18} color="var(--accent-cyan)" />
-                <div style={{ fontSize: '0.82rem' }}>
+                <GitCommit size={16} color="var(--accent-cyan)" />
+                <div style={{ fontSize: '0.8rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Latest Commit: </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#ffffff' }}>
                     {selectedFile.lastCommit}
                   </span>
                 </div>
@@ -329,21 +330,21 @@ export default function RepositoryPage() {
 
               {/* AST Symbols */}
               <div>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Code2 size={16} color="var(--accent-blue)" />
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Code2 size={15} color="var(--accent-blue)" />
                   Parsed AST Symbols ({selectedFile.symbols?.length || 0})
                 </h3>
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                <div style={{ display: 'grid', gap: '0.4rem' }}>
                   {selectedFile.symbols?.map((sym) => (
                     <div
                       key={sym}
                       style={{
-                        padding: '8px 12px',
-                        backgroundColor: 'var(--bg-secondary)',
-                        border: '1px solid var(--border-default)',
+                        padding: '6px 10px',
+                        backgroundColor: 'var(--bg-canvas)',
+                        border: '1px solid var(--border-subtle)',
                         borderRadius: 'var(--radius-sm)',
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '0.82rem',
+                        fontSize: '0.78rem',
                         color: 'var(--accent-cyan)',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -351,7 +352,7 @@ export default function RepositoryPage() {
                       }}
                     >
                       <span>{sym}</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>exported</span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>exported</span>
                     </div>
                   ))}
                 </div>
@@ -360,24 +361,16 @@ export default function RepositoryPage() {
               {/* Linked ADRs */}
               {selectedFile.adrs && selectedFile.adrs.length > 0 && (
                 <div>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ShieldCheck size={16} color="var(--accent-purple)" />
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <ShieldCheck size={15} color="var(--accent-purple)" />
                     Architectural Governance Links
                   </h3>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
                     {selectedFile.adrs.map((adr) => (
                       <span
                         key={adr}
-                        style={{
-                          fontSize: '0.78rem',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: 'rgba(139, 92, 246, 0.1)',
-                          color: 'var(--accent-purple)',
-                          border: '1px solid rgba(139, 92, 246, 0.25)',
-                          fontWeight: 600,
-                          fontFamily: 'var(--font-mono)',
-                        }}
+                        className="stripe-badge stripe-badge-purple"
+                        style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}
                       >
                         {adr}
                       </span>
@@ -387,7 +380,7 @@ export default function RepositoryPage() {
               )}
             </div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', paddingTop: '4rem' }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', paddingTop: '4rem' }}>
               Select a file from the repository tree to inspect symbols and provenance.
             </div>
           )}

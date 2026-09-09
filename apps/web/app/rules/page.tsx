@@ -23,115 +23,113 @@ export default function RulesPage() {
     setTimeout(() => {
       setAuditing(false);
       setAuditComplete(true);
-    }, 1000);
+    }, 900);
   };
 
   const getSeverityBadge = (sev: Rule['severity']) => {
     switch (sev) {
       case 'error':
-        return <span className="badge badge-danger">CRITICAL ERROR</span>;
+        return <span className="stripe-badge stripe-badge-danger">CRITICAL ERROR</span>;
       case 'warning':
-        return <span className="badge badge-warn">WARNING</span>;
+        return <span className="stripe-badge stripe-badge-amber">WARNING</span>;
       case 'info':
-        return <span className="badge badge-blue">ADVISORY</span>;
+        return <span className="stripe-badge stripe-badge-blue">ADVISORY</span>;
       default:
-        return <span className="badge">{sev}</span>;
+        return <span className="stripe-badge">{sev}</span>;
     }
   };
 
   return (
-    <div style={{ display: 'grid', gap: '1.75rem' }}>
+    <div style={{ display: 'grid', gap: '2rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
             <span
               style={{
-                width: 30,
-                height: 30,
-                borderRadius: '8px',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                width: 28,
+                height: 28,
+                borderRadius: '6px',
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--status-ok)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
               }}
             >
-              <ShieldCheck size={18} />
+              <ShieldCheck size={16} />
             </span>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Rules & Architectural Governance
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>
+              Architectural Governance Rules
             </h1>
-            <span className="badge badge-ok">{RULES.length} Active Rules</span>
+            <span className="stripe-badge stripe-badge-green">{RULES.length} Active Rules</span>
           </div>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            Strict engineering boundaries and invariants enforced across all AI agents and CI/CD pipelines.
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Strict engineering boundaries and invariants enforced across all AI agent interactions and continuous integration.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button
-            onClick={handleRunAudit}
-            disabled={auditing}
-            className="btn-primary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
-          >
-            <Play size={14} />
-            {auditing ? 'Running Compliance Audit...' : 'Run Governance Audit'}
-          </button>
-        </div>
+        <button
+          onClick={handleRunAudit}
+          disabled={auditing}
+          className="btn-stripe-primary"
+        >
+          <Play size={13} />
+          <span>{auditing ? 'Running Compliance Audit...' : 'Run Governance Audit'}</span>
+        </button>
       </div>
 
-      {/* Audit Notification */}
+      {/* Audit Notification Banner */}
       {auditComplete && (
         <div
           style={{
-            padding: '1rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
+            padding: '0.85rem 1.15rem',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
           }}
         >
-          <CheckCircle2 size={20} color="var(--status-ok)" />
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+          <CheckCircle2 size={18} color="var(--status-ok)" />
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
             <strong>Governance Audit Passed:</strong> 4/4 rules compliant. Zero secret leaks detected in indexed symbols, ADR supersession integrity validated, and circular dependency graph is clear.
           </div>
         </div>
       )}
 
       {/* Rules List */}
-      <div style={{ display: 'grid', gap: '1.25rem' }}>
+      <div style={{ display: 'grid', gap: '1rem' }}>
         {RULES.map((rule) => (
           <div
             key={rule.id}
-            className="glass-card"
+            className="stripe-card"
             style={{
-              padding: '1.5rem',
+              padding: '1.35rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.85rem',
+              gap: '0.75rem',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>
                   {rule.id}
                 </span>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
                   {rule.name}
                 </h3>
               </div>
               {getSeverityBadge(rule.severity)}
             </div>
 
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
               {rule.description}
             </p>
 
-            <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.78rem' }}>
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ color: 'var(--text-muted)' }}>Enforced Subsystems:</span>
                 <div style={{ display: 'flex', gap: '0.35rem' }}>
@@ -139,12 +137,13 @@ export default function RulesPage() {
                     <span
                       key={sub}
                       style={{
-                        padding: '2px 7px',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: 'var(--bg-tertiary)',
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        backgroundColor: 'var(--bg-canvas)',
                         color: 'var(--accent-blue)',
                         border: '1px solid var(--border-default)',
                         fontFamily: 'var(--font-mono)',
+                        fontSize: '0.7rem',
                       }}
                     >
                       {sub}
@@ -155,7 +154,7 @@ export default function RulesPage() {
 
               <div style={{ color: 'var(--status-ok)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <CheckCircle2 size={13} />
-                <span>Zero Violations Detected</span>
+                <span>Zero Violations</span>
               </div>
             </div>
           </div>

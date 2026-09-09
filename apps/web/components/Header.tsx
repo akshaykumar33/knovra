@@ -4,18 +4,22 @@ import React, { useState, useEffect } from 'react';
 import {
   Search,
   Server,
-  Cpu,
-  Database,
-  ExternalLink,
-  Shield,
   Layers,
+  Shield,
   Terminal,
+  ChevronRight,
+  ExternalLink,
+  Github,
+  Command,
 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { getSystemStatus } from '../lib/api';
 
 export default function Header() {
+  const pathname = usePathname();
   const [query, setQuery] = useState('');
   const [engineStatus, setEngineStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [activeWorkspace, setActiveWorkspace] = useState('knovra/monorepo');
 
   useEffect(() => {
@@ -40,16 +44,23 @@ export default function Header() {
     };
   }, []);
 
+  // Format breadcrumb from pathname
+  const formatBreadcrumb = () => {
+    if (pathname === '/') return 'Overview';
+    const segment = pathname.split('/')[1] || '';
+    return segment.charAt(0).toUpperCase() + segment.slice(1);
+  };
+
   return (
     <header
       style={{
-        height: '64px',
-        minHeight: '64px',
+        height: '56px',
+        minHeight: '56px',
         position: 'sticky',
         top: 0,
-        backgroundColor: 'rgba(11, 15, 25, 0.85)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        backgroundColor: 'rgba(9, 10, 15, 0.8)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--border-default)',
         display: 'flex',
         alignItems: 'center',
@@ -58,134 +69,141 @@ export default function Header() {
         zIndex: 40,
       }}
     >
-      {/* Left: Workspace Selector & Search */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '600px' }}>
+      {/* Left: Breadcrumbs & Workspace Switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        {/* Workspace Pill */}
         <div
+          onClick={() => setWorkspaceMenuOpen(!workspaceMenuOpen)}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            padding: '6px 10px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'var(--bg-tertiary)',
+            gap: '0.45rem',
+            padding: '4px 8px',
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--bg-secondary)',
             border: '1px solid var(--border-default)',
-            fontSize: '0.8rem',
+            fontSize: '0.75rem',
             fontWeight: 600,
             color: 'var(--text-primary)',
             cursor: 'pointer',
+            transition: 'background-color 0.15s ease',
           }}
-          title="Active Workspace"
+          title="Switch Workspace"
         >
-          <Layers size={14} color="var(--accent-cyan)" />
+          <Layers size={13} color="var(--accent-blue)" />
           <span>{activeWorkspace}</span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>(main)</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>(main)</span>
         </div>
 
-        {/* Global Search Bar */}
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-            flex: 1,
-          }}
-        >
-          <Search
-            size={16}
-            style={{
-              position: 'absolute',
-              left: '10px',
-              color: 'var(--text-muted)',
-              pointerEvents: 'none',
-            }}
-          />
-          <input
-            type="text"
-            placeholder="Search symbols, ADRs, rules, or sessions... (Ctrl+K)"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '6px 12px 6px 34px',
-              fontSize: '0.85rem',
-              backgroundColor: 'var(--bg-secondary)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-primary)',
-              outline: 'none',
-              transition: 'border-color 0.15s ease',
-            }}
-            onFocus={(e) => (e.target.style.borderColor = 'var(--accent-blue)')}
-            onBlur={(e) => (e.target.style.borderColor = 'var(--border-default)')}
-          />
+        {/* Breadcrumb Separator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+          <ChevronRight size={13} />
+          <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{formatBreadcrumb()}</span>
         </div>
       </div>
 
-      {/* Right: Service Status Pills & Mode Indicators */}
+      {/* Center: Quick Search Trigger Bar */}
+      <div style={{ position: 'relative', width: '360px', maxWidth: '40%' }}>
+        <Search
+          size={14}
+          style={{
+            position: 'absolute',
+            left: '10px',
+            top: '8px',
+            color: 'var(--text-muted)',
+            pointerEvents: 'none',
+          }}
+        />
+        <input
+          id="global-search-input"
+          type="text"
+          placeholder="Search symbols, ADRs, rules... (Ctrl+K)"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '5px 10px 5px 30px',
+            fontSize: '0.8rem',
+            backgroundColor: 'var(--bg-primary)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            outline: 'none',
+            transition: 'border-color 0.15s ease',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = 'var(--accent-blue)')}
+          onBlur={(e) => (e.target.style.borderColor = 'var(--border-default)')}
+        />
+      </div>
+
+      {/* Right: Live Telemetry & GitHub Link */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        {/* Context Engine Pill */}
+        {/* Context Engine Status Pill */}
         <div
-          className="badge"
+          className="stripe-badge"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: engineStatus === 'online' ? 'var(--status-ok-bg)' : 'rgba(239, 68, 68, 0.1)',
-            borderColor: engineStatus === 'online' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
-            color: engineStatus === 'online' ? 'var(--status-ok)' : 'var(--status-danger)',
-            fontSize: '0.75rem',
-            padding: '4px 10px',
+            backgroundColor: engineStatus === 'online' ? 'var(--status-ok-bg)' : 'rgba(245, 158, 11, 0.08)',
+            borderColor: engineStatus === 'online' ? 'var(--status-ok-border)' : 'var(--status-warn-border)',
+            color: engineStatus === 'online' ? 'var(--status-ok)' : 'var(--accent-amber)',
+            fontSize: '0.72rem',
+            padding: '3px 8px',
           }}
           title={engineStatus === 'online' ? 'Context Engine connected (:8000)' : 'Offline mode active (cached telemetry)'}
         >
           <span
+            className={engineStatus === 'online' ? 'pulsing-dot' : ''}
             style={{
-              width: 7,
-              height: 7,
+              width: 6,
+              height: 6,
               borderRadius: '50%',
-              backgroundColor: engineStatus === 'online' ? 'var(--status-ok)' : 'var(--status-danger)',
-              boxShadow: engineStatus === 'online' ? '0 0 6px var(--status-ok)' : 'none',
+              backgroundColor: engineStatus === 'online' ? 'var(--status-ok)' : 'var(--accent-amber)',
             }}
           />
-          <span>Context Engine {engineStatus === 'online' ? ':8000' : 'Offline Mode'}</span>
+          <span>{engineStatus === 'online' ? 'Engine :8000' : 'Offline Mode'}</span>
         </div>
 
-        {/* MCP Gateway */}
+        {/* MCP Gateway Status */}
         <div
-          className="badge"
+          className="stripe-badge stripe-badge-blue"
+          style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+        >
+          <Terminal size={11} />
+          <span>MCP :8080</span>
+        </div>
+
+        {/* GitHub Repo Link */}
+        <a
+          href="https://github.com/akshaykumar33/knovra"
+          target="_blank"
+          rel="noreferrer"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderColor: 'rgba(59, 130, 246, 0.25)',
-            color: 'var(--accent-blue)',
-            fontSize: '0.75rem',
-            padding: '4px 10px',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            borderRadius: 'var(--radius-sm)',
+            backgroundColor: 'var(--bg-secondary)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            transition: 'all 0.15s ease',
+          }}
+          title="GitHub Repository"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-strong)';
+            e.currentTarget.style.color = '#ffffff';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-default)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
           }}
         >
-          <Terminal size={12} />
-          <span>MCP Gateway :8080</span>
-        </div>
-
-        {/* Invariant #7 Pill */}
-        <div
-          className="badge"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: 'rgba(139, 92, 246, 0.1)',
-            borderColor: 'rgba(139, 92, 246, 0.25)',
-            color: 'var(--accent-purple)',
-            fontSize: '0.75rem',
-            padding: '4px 10px',
-          }}
-          title="Invariant #7: Local-first offline execution with zero secret leakage"
-        >
-          <Shield size={12} />
-          <span>Local-First</span>
-        </div>
+          <Github size={14} />
+        </a>
       </div>
     </header>
   );
