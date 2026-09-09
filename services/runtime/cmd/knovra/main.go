@@ -19,6 +19,7 @@ import (
 	"knovra/runtime/internal/git"
 	"knovra/runtime/internal/graph"
 	"knovra/runtime/internal/ingest"
+	"knovra/runtime/internal/mcp"
 	"knovra/runtime/internal/planner"
 	"knovra/runtime/internal/semantic"
 )
@@ -242,6 +243,9 @@ func main() {
 		}
 		runPack(os.Args[2], os.Args[3:])
 
+	case "mcp":
+		runMCP()
+
 	case "daemon":
 		runDaemon()
 
@@ -290,8 +294,10 @@ func printUsage() {
 	fmt.Println("\nContext Planner Commands (Phase 08):")
 	fmt.Println("  plan \"<prompt>\"          Generate bounded, explainable ContextBundle for task")
 	fmt.Println("  pack \"<prompt>\"          Export prompt-ready Markdown bundle for AI agents")
+	fmt.Println("\nMCP Agent Gateway Commands (Phase 09):")
+	fmt.Println("  mcp                      Start Model Context Protocol (MCP) JSON-RPC 2.0 stdio server")
 	fmt.Println("\nDaemon & Gateway Commands:")
-	fmt.Println("  daemon                   Start background HTTP daemon and MCP gateway")
+	fmt.Println("  daemon                   Start background HTTP daemon and health probes")
 	fmt.Println("  version                  Print version information")
 	fmt.Println("  help                     Show this help message")
 }
@@ -1517,5 +1523,25 @@ func runPack(prompt string, args []string) {
 			outputPath, res.Bundle.TotalTokens, len(res.MarkdownPrompt))
 	} else {
 		fmt.Println(res.MarkdownPrompt)
+	}
+}
+
+func runMCP() {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	server := mcp.NewServer(engineURL)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		cancel()
+	}()
+
+	if err := server.ServeStdio(ctx, os.Stdin, os.Stdout); err != nil && err != context.Canceled {
+		fmt.Fprintf(os.Stderr, "MCP server terminated with error: %v\n", err)
+		os.Exit(1)
 	}
 }

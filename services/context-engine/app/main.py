@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.chunking.chunker import Chunker
@@ -43,6 +44,12 @@ from app.git_memory import (
     GitMemoryStore,
     IngestGitResponse,
     LineageTraceResult,
+)
+from app.mcp import (
+    JsonRpcRequest,
+    JsonRpcResponse,
+    McpGatewayHandler,
+    get_all_tools_dict,
 )
 from app.models import (
     Chunk,
@@ -101,7 +108,14 @@ context_planner: ContextPlanner = ContextPlanner(
     conversation_store=conversation_store,
     git_store=git_store,
 )
-
+mcp_gateway: McpGatewayHandler = McpGatewayHandler(
+    vector_store=vector_store,
+    embedding_provider=embedding_provider,
+    decision_store=decision_store,
+    conversation_store=conversation_store,
+    git_store=git_store,
+    context_planner=context_planner,
+)
 
 
 @asynccontextmanager
@@ -532,6 +546,32 @@ async def generate_context_bundle(request: ContextPlanRequest):
 async def generate_context_prompt(request: ContextPlanRequest):
     """Generates both the structured ContextBundle and prompt-ready Markdown."""
     return await context_planner.plan(request)
+
+
+# -----------------------------------------------------------------------------
+# MCP and Universal Agent Gateway Endpoints (Phase 09)
+# -----------------------------------------------------------------------------
+
+
+@app.post("/mcp/rpc", response_model=JsonRpcResponse)
+async def mcp_json_rpc(request: JsonRpcRequest):
+    """Executes a JSON-RPC 2.0 MCP request against Knovra project intelligence."""
+    return await mcp_gateway.handle_request(request)
+
+
+@app.get("/mcp/tools")
+async def mcp_list_tools():
+    """Lists all 12 available Knovra MCP tools and their schemas."""
+    return {"tools": get_all_tools_dict()}
+
+
+@app.get("/mcp/sse")
+async def mcp_sse_endpoint():
+    """Server-Sent Events (SSE) transport endpoint for MCP clients."""
+    async def event_generator():
+        yield "event: endpoint\ndata: /mcp/rpc\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 if __name__ == "__main__":
