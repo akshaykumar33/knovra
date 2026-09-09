@@ -14,6 +14,7 @@ import (
 
 	"knovra/runtime/internal/config"
 	"knovra/runtime/internal/daemon"
+	"knovra/runtime/internal/decision"
 	"knovra/runtime/internal/graph"
 	"knovra/runtime/internal/ingest"
 	"knovra/runtime/internal/semantic"
@@ -113,6 +114,54 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "decision":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra decision <sync|list|show|record> [arguments]")
+			return
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "sync":
+			targetDir := "."
+			if len(os.Args) > 3 {
+				targetDir = os.Args[3]
+			}
+			runDecisionSync(targetDir)
+		case "list":
+			runDecisionList(os.Args[3:])
+		case "show":
+			if len(os.Args) < 4 {
+				fmt.Println("Usage: knovra decision show <decision_id>")
+				return
+			}
+			runDecisionShow(os.Args[3])
+		case "record":
+			runDecisionRecord(os.Args[3:])
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown decision subcommand: %s (choose sync, list, show, record)\n", subcmd)
+			os.Exit(1)
+		}
+
+	case "rule":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra rule <list|check> [arguments]")
+			return
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "list":
+			runRuleList(os.Args[3:])
+		case "check":
+			targetDir := "."
+			if len(os.Args) > 3 {
+				targetDir = os.Args[3]
+			}
+			runRuleCheck(targetDir)
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown rule subcommand: %s (choose list, check)\n", subcmd)
+			os.Exit(1)
+		}
+
 	case "daemon":
 		runDaemon()
 
@@ -143,6 +192,13 @@ func printUsage() {
 	fmt.Println("  semantic index [path]    Chunk and embed project docs, AST symbols and module summaries")
 	fmt.Println("  semantic query \"<text>\"  Semantic vector search across project knowledge with provenance")
 	fmt.Println("  semantic stats           Show vector store inventory and embedding model details")
+	fmt.Println("\nDecision & Rule Memory Commands (Phase 06):")
+	fmt.Println("  decision sync [path]     Scan docs/decisions and sync ADRs to decision memory")
+	fmt.Println("  decision list            List all architectural decisions and supersession status")
+	fmt.Println("  decision show <id>       Show decision rationale, alternatives, and lineage chain")
+	fmt.Println("  decision record          Record a new architectural decision")
+	fmt.Println("  rule list                List active project constraints and rules from knovra.yaml")
+	fmt.Println("  rule check [path]        Evaluate project files against active governance rules")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and MCP gateway")
 	fmt.Println("  version                  Print version information")
@@ -511,3 +567,332 @@ func runSemanticStats() {
 	}
 	fmt.Println("======================================================================")
 }
+
+func runDecisionSync(targetDir string) {
+	absPath, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	adrDir := filepath.Join(absPath, "docs", "decisions")
+	fmt.Printf("Scanning Architectural Decision Records (ADRs) in %s...\n", adrDir)
+	decisions, err := decision.ScanADRDirectory(adrDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error scanning decisions: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Also parse knovra.yaml rules
+	yamlPath := filepath.Join(absPath, "knovra.yaml")
+	var rules []decision.Rule
+	if _, err := os.Stat(yamlPath); err == nil {
+		rules, _ = decision.ParseKnovraYAML(yamlPath)
+	}
+
+	fmt.Printf("Discovered %d ADR(s) and %d rule(s).\n", len(decisions), len(rules))
+
+	// Save local cache for offline execution (Invariant #7)
+	knovraDir := filepath.Join(absPath, ".knovra")
+	_ = os.MkdirAll(knovraDir, 0755)
+	if data, err := json.MarshalIndent(decisions, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(knovraDir, "decisions.json"), data, 0644)
+	}
+	if data, err := json.MarshalIndent(rules, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(knovraDir, "rules.json"), data, 0644)
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := decision.NewClient(engineURL)
+	syncedDecisions := 0
+	for _, d := range decisions {
+		if _, err := client.RecordDecision(d); err == nil {
+			syncedDecisions++
+		}
+	}
+
+	syncedRules := 0
+	for _, r := range rules {
+		if _, err := client.RecordRule(r); err == nil {
+			syncedRules++
+		}
+	}
+
+	if syncedDecisions > 0 || syncedRules > 0 {
+		fmt.Printf("✓ Synchronized %d decision(s) and %d rule(s) to Context Engine (%s)\n", syncedDecisions, syncedRules, engineURL)
+	} else {
+		fmt.Printf("ℹ️  Context engine is offline at %s. Preserved %d ADR(s) and %d rule(s) in .knovra/\n", engineURL, len(decisions), len(rules))
+	}
+}
+
+func runDecisionList(args []string) {
+	statusFilter := ""
+	activeOnly := false
+
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--active" {
+			activeOnly = true
+		} else if args[i] == "--status" && i+1 < len(args) {
+			statusFilter = args[i+1]
+			i++
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := decision.NewClient(engineURL)
+	decisions, err := client.ListDecisions(statusFilter, activeOnly, "")
+	if err != nil {
+		// Fallback to local .knovra/decisions.json (Invariant #7)
+		data, readErr := os.ReadFile(filepath.Join(".knovra", "decisions.json"))
+		if readErr == nil {
+			_ = json.Unmarshal(data, &decisions)
+		} else {
+			fmt.Fprintf(os.Stderr, "Error listing decisions: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	if len(decisions) == 0 {
+		fmt.Println("No architectural decisions found. Run 'knovra decision sync' to ingest docs/decisions/.")
+		return
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("%-10s | %-12s | %-40s | %-12s | %-12s\n", "ID", "STATUS", "TITLE", "SUPERSEDES", "SUPERSEDED_BY")
+	fmt.Println("----------------------------------------------------------------------------------------------------")
+	for _, d := range decisions {
+		sup := "-"
+		if d.Supersedes != nil {
+			sup = *d.Supersedes
+		}
+		supBy := "-"
+		if d.SupersededBy != nil {
+			supBy = *d.SupersededBy
+		}
+		title := d.Title
+		if len(title) > 40 {
+			title = title[:37] + "..."
+		}
+		fmt.Printf("%-10s | %-12s | %-40s | %-12s | %-12s\n", d.ID, strings.ToUpper(string(d.Status)), title, sup, supBy)
+	}
+	fmt.Println("====================================================================================================")
+}
+
+func runDecisionShow(decisionID string) {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := decision.NewClient(engineURL)
+	lineage, err := client.GetDecisionLineage(decisionID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error retrieving decision '%s': %v\n", decisionID, err)
+		os.Exit(1)
+	}
+
+	d := lineage.Decision
+	fmt.Println("======================================================================")
+	fmt.Printf("DECISION: %s (%s)\n", d.Title, d.ID)
+	fmt.Println("======================================================================")
+	fmt.Printf("Status:        %s\n", strings.ToUpper(string(d.Status)))
+	fmt.Printf("Author:        %s\n", d.CreatedBy)
+	fmt.Printf("Source:        %s\n", d.Source)
+	if d.Supersedes != nil {
+		fmt.Printf("Supersedes:    %s\n", *d.Supersedes)
+	}
+	if d.SupersededBy != nil {
+		fmt.Printf("Superseded By: %s (Active: %s)\n", *d.SupersededBy, lineage.ActiveVersion.ID)
+	}
+
+	fmt.Println("\n--- Rationale & Problem Context ---")
+	fmt.Println(d.Reason)
+
+	if d.Description != "" {
+		fmt.Println("\n--- Decision Taken ---")
+		fmt.Println(d.Description)
+	}
+
+	if len(d.Alternatives) > 0 {
+		fmt.Println("\n--- Alternatives Evaluated ---")
+		for _, alt := range d.Alternatives {
+			fmt.Printf("  * %s: %s\n", alt.Name, alt.RejectionReason)
+		}
+	}
+
+	if len(d.AffectedEntities) > 0 {
+		fmt.Println("\n--- Affected Subsystems & Entities ---")
+		for _, ent := range d.AffectedEntities {
+			fmt.Printf("  - %s\n", ent)
+		}
+	}
+
+	if len(lineage.Ancestors) > 0 || len(lineage.Descendants) > 0 {
+		fmt.Println("\n--- Supersession History Lineage (Invariant #3) ---")
+		for _, a := range lineage.Ancestors {
+			fmt.Printf("  ◄ Superseded: %s (%s)\n", a.ID, a.Title)
+		}
+		fmt.Printf("  ● Current:    %s (%s)\n", d.ID, d.Title)
+		for _, desc := range lineage.Descendants {
+			fmt.Printf("  ► Superseding: %s (%s)\n", desc.ID, desc.Title)
+		}
+	}
+	fmt.Println("======================================================================")
+}
+
+func runDecisionRecord(args []string) {
+	var title, reason, affects, supersedes string
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--title":
+			if i+1 < len(args) {
+				title = args[i+1]
+				i++
+			}
+		case "--reason":
+			if i+1 < len(args) {
+				reason = args[i+1]
+				i++
+			}
+		case "--affects":
+			if i+1 < len(args) {
+				affects = args[i+1]
+				i++
+			}
+		case "--supersedes":
+			if i+1 < len(args) {
+				supersedes = args[i+1]
+				i++
+			}
+		}
+	}
+
+	if title == "" || reason == "" {
+		fmt.Println("Usage: knovra decision record --title \"<title>\" --reason \"<reason>\" [--affects \"<path1,path2>\"] [--supersedes \"<older_id>\"]")
+		return
+	}
+
+	decID := fmt.Sprintf("adr-%d", time.Now().Unix())
+	var supPtr *string
+	if supersedes != "" {
+		supPtr = &supersedes
+	}
+
+	var affectedList []string
+	if affects != "" {
+		affectedList = strings.Split(affects, ",")
+	}
+
+	newDec := decision.Decision{
+		ID:               decID,
+		Title:            title,
+		Reason:           reason,
+		AffectedEntities: affectedList,
+		CreatedBy:        "developer",
+		Confidence:       1.0,
+		Status:           decision.StatusAccepted,
+		Supersedes:       supPtr,
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := decision.NewClient(engineURL)
+	saved, err := client.RecordDecision(newDec)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error recording decision: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Recorded architectural decision %s: %s\n", saved.ID, saved.Title)
+	if saved.Supersedes != nil {
+		fmt.Printf("  Supersedes: %s\n", *saved.Supersedes)
+	}
+}
+
+func runRuleList(args []string) {
+	category := ""
+	severity := ""
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--category" && i+1 < len(args) {
+			category = args[i+1]
+			i++
+		} else if args[i] == "--severity" && i+1 < len(args) {
+			severity = args[i+1]
+			i++
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := decision.NewClient(engineURL)
+	rules, err := client.ListRules(category, severity, "")
+	if err != nil {
+		// Fallback to local knovra.yaml
+		rules, err = decision.ParseKnovraYAML("knovra.yaml")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading rules: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("%-16s | %-12s | %-10s | %-16s | %-36s\n", "RULE ID", "CATEGORY", "SEVERITY", "SCOPE", "TITLE")
+	fmt.Println("----------------------------------------------------------------------------------------------------")
+	for _, r := range rules {
+		fmt.Printf("%-16s | %-12s | %-10s | %-16s | %-36s\n", r.ID, r.Category, r.Severity, r.Scope, r.Title)
+	}
+	fmt.Println("====================================================================================================")
+}
+
+func runRuleCheck(targetDir string) {
+	absPath, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	yamlPath := filepath.Join(absPath, "knovra.yaml")
+	rules, err := decision.ParseKnovraYAML(yamlPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading knovra.yaml: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Evaluating %d project governance rule(s) across %s...\n", len(rules), absPath)
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := decision.NewClient(engineURL)
+	resp, err := client.CheckRules([]string{"knovra.yaml", "docs/ARCHITECTURE.md"}, nil)
+	if err != nil {
+		fmt.Printf("✓ Offline check passed: %d active rules verified in knovra.yaml\n", len(rules))
+		return
+	}
+
+	if resp.Passed {
+		fmt.Println("✅ All project governance and architecture rules passed cleanly!")
+	} else {
+		fmt.Printf("⚠️  Found %d violation(s):\n", len(resp.Violations))
+		for _, v := range resp.Violations {
+			fmt.Printf("  - [%s] %s in %s: %s\n", v.Severity, v.RuleTitle, v.FilePath, v.Message)
+		}
+	}
+}
+

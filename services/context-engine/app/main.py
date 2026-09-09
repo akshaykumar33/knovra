@@ -15,11 +15,25 @@ from pydantic import BaseModel
 
 from app.chunking.chunker import Chunker
 from app.config import settings
+from app.decision import (
+    Decision,
+    DecisionLineageResponse,
+    DecisionRuleStore,
+    DecisionStatus,
+    Rule,
+    RuleCategory,
+    RuleCheckRequest,
+    RuleCheckResponse,
+    RuleSeverity,
+)
 from app.embeddings.adapter import BaseEmbeddingProvider, get_embedding_provider
 from app.models import (
     Chunk,
+    DocType,
+    DocumentInput,
     IndexBatchRequest,
     IndexBatchResponse,
+    Provenance,
     SearchQuery,
     SearchResult,
     SemanticStats,
@@ -54,6 +68,8 @@ chunker: Chunker = Chunker(
     max_chunk_chars=settings.chunk_max_chars,
     overlap_chars=settings.chunk_overlap_chars,
 )
+decision_store: DecisionRuleStore = DecisionRuleStore()
+
 
 
 @asynccontextmanager
@@ -192,6 +208,129 @@ async def get_stats():
     return await vector_store.get_stats()
 
 
+# ==============================================================================
+# Phase 06 — Decision & Rule Memory Endpoints
+# ==============================================================================
+
+
+@app.post("/decisions", response_model=Decision, status_code=status.HTTP_201_CREATED)
+async def create_decision(decision: Decision):
+    """Records an architectural decision with rationale, alternatives, and provenance.
+
+    Also indexes into semantic memory for natural-language retrieval.
+    """
+    recorded = decision_store.record_decision(decision)
+
+    # Automatically chunk and index into Semantic Memory with Provenance (Invariant #2)
+    alt_text = "\n".join(f"- Alternative '{a.name}': {a.description} (Rejection: {a.rejection_reason})" for a in decision.alternatives)
+    content = f"# {decision.title}\n\n## Status: {decision.status.value.upper()}\n\n## Rationale\n{decision.reason}\n\n## Description\n{decision.description}\n\n## Alternatives Considered\n{alt_text}"
+
+    doc = DocumentInput(
+        document_id=f"decision:{decision.id}",
+        project_id="knovra",
+        repository_id="knovra",
+        doc_type=DocType.DECISION,
+        title=decision.title,
+        content=content,
+        provenance=Provenance(
+            file_path=decision.source or f"docs/decisions/{decision.id}.md",
+            content_hash=decision.id,
+            repo_name="knovra",
+        ),
+        metadata={
+            "decision_id": decision.id,
+            "status": decision.status.value,
+            "created_by": decision.created_by,
+            "supersedes": decision.supersedes,
+            "superseded_by": decision.superseded_by,
+            "affected_entities": decision.affected_entities,
+        },
+    )
+
+    chunks = chunker.chunk_document(doc)
+    if chunks:
+        embeddings = await embedding_provider.embed_texts([c.content for c in chunks])
+        for c, emb in zip(chunks, embeddings):
+            c.embedding = emb
+            c.model_name = embedding_provider.model_name
+        await vector_store.store_chunks(chunks)
+
+    return recorded
+
+
+@app.get("/decisions", response_model=list[Decision])
+async def list_decisions(
+    status_filter: DecisionStatus | None = None,
+    active_only: bool = False,
+    affected_entity: str | None = None,
+):
+    """Lists architectural decisions matching filters."""
+    return decision_store.list_decisions(
+        status=status_filter,
+        active_only=active_only,
+        affected_entity=affected_entity,
+    )
+
+
+@app.get("/decisions/{decision_id}", response_model=DecisionLineageResponse)
+async def get_decision_lineage(decision_id: str):
+    """Retrieves an architectural decision with full supersession lineage (Invariant #3)."""
+    lineage = decision_store.get_lineage(decision_id)
+    if not lineage:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Decision {decision_id} not found")
+    return lineage
+
+
+@app.post("/decisions/{decision_id}/supersede", response_model=Decision)
+async def supersede_decision(decision_id: str, new_decision: Decision):
+    """Explicitly supersedes an existing decision with a newer decision."""
+    try:
+        return await create_decision(
+            Decision(
+                id=new_decision.id,
+                title=new_decision.title,
+                description=new_decision.description,
+                reason=new_decision.reason,
+                alternatives=new_decision.alternatives,
+                affected_entities=new_decision.affected_entities,
+                created_by=new_decision.created_by,
+                confidence=new_decision.confidence,
+                status=DecisionStatus.ACCEPTED,
+                source=new_decision.source,
+                supersedes=decision_id,
+                metadata=new_decision.metadata,
+            )
+        )
+    except KeyError as ex:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ex))
+
+
+@app.post("/rules", response_model=Rule, status_code=status.HTTP_201_CREATED)
+async def create_rule(rule: Rule):
+    """Registers a project rule, architecture constraint, or security policy."""
+    return decision_store.record_rule(rule)
+
+
+@app.get("/rules", response_model=list[Rule])
+async def list_rules(
+    category: RuleCategory | None = None,
+    severity: RuleSeverity | None = None,
+    scope: str | None = None,
+):
+    """Lists project rules and architecture constraints."""
+    return decision_store.list_rules(category=category, severity=severity, scope=scope)
+
+
+@app.post("/rules/check", response_model=RuleCheckResponse)
+async def check_rules(request: RuleCheckRequest):
+    """Evaluates files and contents against active project rules."""
+    return decision_store.evaluate_rules(
+        file_paths=request.file_paths,
+        contents=request.contents,
+    )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=settings.port_context_engine)
+

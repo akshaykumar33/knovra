@@ -71,6 +71,10 @@ async def test_semantic_index_and_search_api():
             ]
         }
 
+        # Baseline stats
+        init_stats = (await client.get("/semantic/stats")).json()
+        init_docs = init_stats["total_documents"]
+
         index_resp = await client.post("/semantic/index", json=payload)
         assert index_resp.status_code == 200
         index_data = index_resp.json()
@@ -81,12 +85,13 @@ async def test_semantic_index_and_search_api():
         stats_resp = await client.get("/semantic/stats")
         assert stats_resp.status_code == 200
         stats_data = stats_resp.json()
-        assert stats_data["total_documents"] == 3
-        assert stats_data["by_doc_type"]["doc"] == 1
-        assert stats_data["by_doc_type"]["code_summary"] == 1
-        assert stats_data["by_doc_type"]["decision"] == 1
+        assert stats_data["total_documents"] == init_docs + 3
+        assert stats_data["by_doc_type"]["doc"] >= 1
+        assert stats_data["by_doc_type"]["code_summary"] >= 1
+        assert stats_data["by_doc_type"]["decision"] >= 1
 
         # 4. Search for code parser
+
         search_query = {
             "query": "tree-sitter ast symbol parser for typescript",
             "top_k": 5,
@@ -111,8 +116,9 @@ async def test_semantic_index_and_search_api():
         dec_resp = await client.post("/semantic/search", json=decision_query)
         assert dec_resp.status_code == 200
         dec_results = dec_resp.json()
-        assert len(dec_results) == 1
+        assert len(dec_results) >= 1
         assert dec_results[0]["document_id"] == "adr-001"
+
 
         # 6. Deletion propagation
         del_resp = await client.delete("/semantic/documents/adr-001")
@@ -122,4 +128,5 @@ async def test_semantic_index_and_search_api():
 
         # Verify document is gone from stats
         stats_after = await client.get("/semantic/stats")
-        assert stats_after.json()["total_documents"] == 2
+        assert stats_after.json()["total_documents"] == init_docs + 2
+

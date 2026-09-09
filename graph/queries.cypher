@@ -27,6 +27,24 @@ RETURN caller.name AS caller, callee.name AS callee, callee.file_path AS callee_
 
 // 6. Find all active decisions affecting a subsystem or project
 MATCH (d:Decision {project_id: $project_id})
-WHERE d.status = 'active'
+WHERE d.status = 'accepted' AND d.superseded_by IS NULL
 RETURN d.id, d.title, d.reason, d.created_at
 ORDER BY d.created_at DESC;
+
+// 7. Trace complete decision supersession lineage (Invariant #3)
+MATCH (d:Decision {id: $decision_id})
+OPTIONAL MATCH path = (d)-[:SUPERSEDES*]->(older:Decision)
+OPTIONAL MATCH revPath = (newer:Decision)-[:SUPERSEDES*]->(d)
+RETURN d, nodes(path) AS older_decisions, nodes(revPath) AS newer_decisions;
+
+// 8. Find all decisions affecting a specific file, module or symbol
+MATCH (d:Decision)-[:AFFECTS]->(entity)
+WHERE entity.id = $entity_id OR entity.path = $file_path
+RETURN d.id AS decision_id, d.title AS title, d.status AS status, d.reason AS reason;
+
+// 9. Find rules constraining a file or scope
+MATCH (r:Rule)
+WHERE r.scope = '*' OR $file_path STARTS WITH r.scope
+RETURN r.id AS rule_id, r.title AS title, r.severity AS severity, r.instruction AS instruction, r.category AS category
+ORDER BY CASE r.severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END ASC;
+
