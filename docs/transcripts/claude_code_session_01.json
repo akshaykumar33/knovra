@@ -1,0 +1,32 @@
+[
+  {
+    "id": "claude-001",
+    "type": "user",
+    "text": "We need to review the architecture for Knovra and decide how to structure the repository."
+  },
+  {
+    "id": "claude-002",
+    "type": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "We decided to adopt ADR-001 for a polyglot monorepo structure with Go runtime, Python context engine, and Rust indexer. The system must maintain invariant #7 for local-first offline execution in services/runtime/cmd/knovra/main.go."
+      }
+    ]
+  },
+  {
+    "id": "claude-003",
+    "type": "user",
+    "text": "The vector database setup failed with exit code 1 due to connection refused on port 5432."
+  },
+  {
+    "id": "claude-004",
+    "type": "assistant",
+    "content": [
+      {
+        "type": "text",
+        "text": "This was resolved by creating ADR-004 for a resilient hybrid vector store with in-memory offline fallback."
+      }
+    ]
+  }
+]

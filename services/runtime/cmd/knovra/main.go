@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"knovra/runtime/internal/config"
+	"knovra/runtime/internal/conversation"
 	"knovra/runtime/internal/daemon"
 	"knovra/runtime/internal/decision"
+	"knovra/runtime/internal/git"
 	"knovra/runtime/internal/graph"
 	"knovra/runtime/internal/ingest"
 	"knovra/runtime/internal/semantic"
@@ -162,6 +164,69 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "git":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra git <ingest|log> [arguments]")
+			return
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "ingest":
+			targetDir := "."
+			if len(os.Args) > 3 {
+				targetDir = os.Args[3]
+			}
+			runGitIngest(targetDir)
+		case "log":
+			runGitLog(os.Args[3:])
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown git subcommand: %s (choose ingest, log)\n", subcmd)
+			os.Exit(1)
+		}
+
+	case "conversation":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra conversation <import|list|show> [arguments]")
+			return
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "import":
+			if len(os.Args) < 4 {
+				fmt.Println("Usage: knovra conversation import <file> [--format <format>] [--title <title>]")
+				return
+			}
+			runConversationImport(os.Args[3], os.Args[4:])
+		case "list":
+			runConversationList(os.Args[3:])
+		case "show":
+			if len(os.Args) < 4 {
+				fmt.Println("Usage: knovra conversation show <session_id>")
+				return
+			}
+			runConversationShow(os.Args[3])
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown conversation subcommand: %s (choose import, list, show)\n", subcmd)
+			os.Exit(1)
+		}
+
+	case "trace":
+		if len(os.Args) < 4 {
+			fmt.Println("Usage: knovra trace <decision|file> <id|path>")
+			return
+		}
+		traceType := os.Args[2]
+		target := os.Args[3]
+		switch traceType {
+		case "decision":
+			runTraceDecision(target)
+		case "file":
+			runTraceFile(target)
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown trace type: %s (choose decision, file)\n", traceType)
+			os.Exit(1)
+		}
+
 	case "daemon":
 		runDaemon()
 
@@ -199,6 +264,14 @@ func printUsage() {
 	fmt.Println("  decision record          Record a new architectural decision")
 	fmt.Println("  rule list                List active project constraints and rules from knovra.yaml")
 	fmt.Println("  rule check [path]        Evaluate project files against active governance rules")
+	fmt.Println("\nConversation & Git History Memory (Phase 07):")
+	fmt.Println("  git ingest [path]        Extract local Git history and synchronize to Context Engine")
+	fmt.Println("  git log [--limit <n>]    Show commit history with linked ADR decisions and file changes")
+	fmt.Println("  conversation import <f>  Import transcript (Claude Code, ChatGPT, Codex, Generic)")
+	fmt.Println("  conversation list        List imported conversation sessions with facts overview")
+	fmt.Println("  conversation show <id>   Display conversation summary, extracted facts and turns")
+	fmt.Println("  trace decision <adr-id>  Trace an ADR to discussions, commits, and modified files")
+	fmt.Println("  trace file <file-path>   Trace a file to modifying commits, decisions, and conversations")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and MCP gateway")
 	fmt.Println("  version                  Print version information")
@@ -896,3 +969,374 @@ func runRuleCheck(targetDir string) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// Git Memory Runners (Phase 07)
+// -----------------------------------------------------------------------------
+
+func runGitIngest(targetDir string) {
+	absPath, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Extracting Git history from %s...\n", absPath)
+	extractor := git.NewGitExtractor(absPath)
+	payload, err := extractor.ExtractHistory(200)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error extracting Git history: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Extracted %d commit(s), %d branch(es), %d tag(s).\n", len(payload.Commits), len(payload.Branches), len(payload.Tags))
+
+	// Save offline cache
+	knovraDir := filepath.Join(absPath, ".knovra")
+	_ = os.MkdirAll(knovraDir, 0755)
+	cacheFile := filepath.Join(knovraDir, "git_history.json")
+	if data, err := json.MarshalIndent(payload, "", "  "); err == nil {
+		_ = os.WriteFile(cacheFile, data, 0644)
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := git.NewClient(engineURL)
+	resp, err := client.IngestHistory(context.Background(), payload)
+	if err != nil {
+		fmt.Printf("✓ Offline capture complete! Saved Git history to %s\n", cacheFile)
+		return
+	}
+
+	fmt.Println("✓ Successfully ingested Git history into Context Engine!")
+	fmt.Printf("  - Commits Ingested:  %d\n", resp.CommitsIngested)
+	fmt.Printf("  - Branches Ingested: %d\n", resp.BranchesIngested)
+	fmt.Printf("  - Tags Ingested:     %d\n", resp.TagsIngested)
+	if len(resp.DecisionsLinked) > 0 {
+		fmt.Printf("  - Decisions Linked:  %d\n", len(resp.DecisionsLinked))
+		for decID, commits := range resp.DecisionsLinked {
+			fmt.Printf("      * %s -> %v\n", decID, commits)
+		}
+	}
+}
+
+func runGitLog(args []string) {
+	limit := 20
+	decisionID := ""
+
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--limit" && i+1 < len(args) {
+			if l, err := strconv.Atoi(args[i+1]); err == nil {
+				limit = l
+			}
+			i++
+		} else if args[i] == "--decision" && i+1 < len(args) {
+			decisionID = args[i+1]
+			i++
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := git.NewClient(engineURL)
+	commits, err := client.ListCommits(context.Background(), limit, decisionID)
+	if err != nil {
+		// Fallback to local .knovra cache
+		cacheFile := filepath.Join(".knovra", "git_history.json")
+		if data, readErr := os.ReadFile(cacheFile); readErr == nil {
+			var payload git.GitHistoryPayload
+			if jsonErr := json.Unmarshal(data, &payload); jsonErr == nil {
+				commits = payload.Commits
+			}
+		}
+		if len(commits) == 0 {
+			fmt.Fprintf(os.Stderr, "Error querying Git commits: %v (try running 'knovra git ingest' first)\n", err)
+			return
+		}
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("%-8s | %-12s | %-16s | %-10s | %-42s\n", "HASH", "DATE", "AUTHOR", "ADRS", "SUBJECT")
+	fmt.Println("----------------------------------------------------------------------------------------------------")
+	for _, c := range commits {
+		adrs := "-"
+		if len(c.LinkedDecisions) > 0 {
+			adrs = strings.Join(c.LinkedDecisions, ",")
+		}
+		dateStr := c.Date.Format("2006-01-02")
+		fmt.Printf("%-8s | %-12s | %-16s | %-10s | %-42s\n", c.ShortHash, dateStr, truncate(c.AuthorName, 16), adrs, truncate(c.Subject, 42))
+	}
+	fmt.Println("====================================================================================================")
+	fmt.Printf("Total Commits: %d\n", len(commits))
+}
+
+// -----------------------------------------------------------------------------
+// Conversation Memory Runners (Phase 07)
+// -----------------------------------------------------------------------------
+
+func runConversationImport(filePath string, args []string) {
+	fmtType := "generic"
+	title := ""
+
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--format" && i+1 < len(args) {
+			fmtType = args[i+1]
+			i++
+		} else if args[i] == "--title" && i+1 < len(args) {
+			title = args[i+1]
+			i++
+		}
+	}
+
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving transcript path: %v\n", err)
+		os.Exit(1)
+	}
+
+	rawBytes, err := os.ReadFile(absPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading transcript file: %v\n", err)
+		os.Exit(1)
+	}
+
+	if title == "" {
+		title = filepath.Base(absPath)
+	}
+
+	var contentObj interface{}
+	if jsonErr := json.Unmarshal(rawBytes, &contentObj); jsonErr != nil {
+		contentObj = string(rawBytes)
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := conversation.NewClient(engineURL)
+	req := &conversation.IngestConversationRequest{
+		Title:     title,
+		Format:    fmtType,
+		Content:   contentObj,
+		ProjectID: "knovra",
+	}
+
+	fmt.Printf("Importing conversation transcript '%s' (format: %s)...\n", title, fmtType)
+	resp, err := client.Ingest(context.Background(), req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error importing conversation: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ Successfully imported and analyzed conversation transcript!")
+	fmt.Printf("  - Session ID:       %s\n", resp.SessionID)
+	fmt.Printf("  - Messages Count:   %d\n", resp.MessageCount)
+	fmt.Printf("  - Semantic Indexed: %t\n", resp.IndexedSemantic)
+	if len(resp.FactCounts) > 0 {
+		fmt.Println("  - Extracted Facts:")
+		for ftype, count := range resp.FactCounts {
+			fmt.Printf("      * %s: %d\n", ftype, count)
+		}
+	}
+	if len(resp.DecisionsDetected) > 0 {
+		fmt.Printf("  - Detected ADRs:    %s\n", strings.Join(resp.DecisionsDetected, ", "))
+	}
+}
+
+func runConversationList(args []string) {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := conversation.NewClient(engineURL)
+	sessions, err := client.ListSessions(context.Background(), 50)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error listing conversation sessions: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(sessions) == 0 {
+		fmt.Println("No conversation sessions found. Import sessions using 'knovra conversation import <file>'.")
+		return
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("%-16s | %-12s | %-12s | %-8s | %-8s | %-32s\n", "SESSION ID", "FORMAT", "DATE", "MSGS", "FACTS", "TITLE")
+	fmt.Println("----------------------------------------------------------------------------------------------------")
+	for _, s := range sessions {
+		dateStr := s.CreatedAt.Format("2006-01-02")
+		fmt.Printf("%-16s | %-12s | %-12s | %-8d | %-8d | %-32s\n",
+			s.ID, s.SourceFormat, dateStr, len(s.Messages), len(s.ExtractedFacts), truncate(s.Title, 32))
+	}
+	fmt.Println("====================================================================================================")
+	fmt.Printf("Total Sessions: %d\n", len(sessions))
+}
+
+func runConversationShow(sessionID string) {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := conversation.NewClient(engineURL)
+	session, err := client.GetSession(context.Background(), sessionID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error retrieving session %s: %v\n", sessionID, err)
+		os.Exit(1)
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("CONVERSATION SESSION: %s\n", session.Title)
+	fmt.Println("====================================================================================================")
+	fmt.Printf("ID:         %s\n", session.ID)
+	fmt.Printf("Format:     %s\n", session.SourceFormat)
+	fmt.Printf("Created At: %s\n", session.CreatedAt.Format(time.RFC3339))
+	fmt.Printf("Summary:    %s\n", session.Summary)
+	fmt.Printf("Messages:   %d\n", len(session.Messages))
+	fmt.Printf("Facts:      %d\n", len(session.ExtractedFacts))
+
+	if len(session.ExtractedFacts) > 0 {
+		fmt.Println("\n--- Extracted Intelligence Facts ---")
+		for _, f := range session.ExtractedFacts {
+			fmt.Printf("  [%-11s] %s\n", strings.ToUpper(f.FactType), f.Text)
+		}
+	}
+
+	fmt.Println("\n--- Transcript Timeline ---")
+	for _, m := range session.Messages {
+		roleUpper := strings.ToUpper(m.Role)
+		snippet := truncate(strings.ReplaceAll(m.Content, "\n", " "), 100)
+		fmt.Printf("  [%-9s] %s\n", roleUpper, snippet)
+	}
+	fmt.Println("====================================================================================================")
+}
+
+// -----------------------------------------------------------------------------
+// Cross-Domain Lineage Runners (Phase 07)
+// -----------------------------------------------------------------------------
+
+func runTraceDecision(decisionID string) {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := git.NewClient(engineURL)
+	trace, err := client.TraceDecision(context.Background(), decisionID)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error tracing decision %s: %v\n", decisionID, err)
+		os.Exit(1)
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("LINEAGE TRACE: DECISION [%s]\n", trace.QueryTarget)
+	fmt.Println("====================================================================================================")
+	if trace.DecisionTitle != "" {
+		fmt.Printf("Title:  %s\n", trace.DecisionTitle)
+	}
+	if trace.DecisionStatus != "" {
+		fmt.Printf("Status: %s\n", strings.ToUpper(trace.DecisionStatus))
+	}
+
+	fmt.Printf("\nImplementing Git Commits (%d):\n", len(trace.Commits))
+	if len(trace.Commits) == 0 {
+		fmt.Println("  (no commits referencing this decision yet)")
+	} else {
+		for _, c := range trace.Commits {
+			fmt.Printf("  [%s] %s — %s\n", c.ShortHash, c.Date.Format("2006-01-02"), c.AuthorName)
+			fmt.Printf("        %s\n", c.Subject)
+			var fnames []string
+			for _, f := range c.ChangedFiles {
+				fnames = append(fnames, f.Path)
+			}
+			if len(fnames) > 0 {
+				fmt.Printf("        Files: %s\n", strings.Join(fnames, ", "))
+			}
+		}
+	}
+
+	fmt.Printf("\nModified Source Files (%d):\n", len(trace.ModifiedFiles))
+	for _, f := range trace.ModifiedFiles {
+		fmt.Printf("  - %s\n", f)
+	}
+
+	fmt.Printf("\nDiscussing Conversation Sessions (%d):\n", len(trace.Conversations))
+	if len(trace.Conversations) == 0 {
+		fmt.Println("  (no conversations discussing this decision)")
+	} else {
+		for _, conv := range trace.Conversations {
+			sid := fmt.Sprintf("%v", conv["session_id"])
+			stitle := fmt.Sprintf("%v", conv["title"])
+			fmt.Printf("  - [%s] %s\n", sid, stitle)
+			if summary, ok := conv["summary"].(string); ok && summary != "" {
+				fmt.Printf("    Summary: %s\n", summary)
+			}
+		}
+	}
+	fmt.Println("====================================================================================================")
+}
+
+func runTraceFile(filePath string) {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := git.NewClient(engineURL)
+	trace, err := client.TraceFile(context.Background(), filePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error tracing file %s: %v\n", filePath, err)
+		os.Exit(1)
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("LINEAGE TRACE: FILE [%s]\n", trace.QueryTarget)
+	fmt.Println("====================================================================================================")
+
+	fmt.Printf("Modifying Commits (%d):\n", len(trace.Commits))
+	if len(trace.Commits) == 0 {
+		fmt.Println("  (no recorded commits touching this file)")
+	} else {
+		for _, c := range trace.Commits {
+			adrs := ""
+			if len(c.LinkedDecisions) > 0 {
+				adrs = fmt.Sprintf(" [ADR: %s]", strings.Join(c.LinkedDecisions, ", "))
+			}
+			fmt.Printf("  [%s] %s — %s%s\n", c.ShortHash, c.Date.Format("2006-01-02"), c.AuthorName, adrs)
+			fmt.Printf("        %s\n", c.Subject)
+		}
+	}
+
+	if trace.DecisionID != "" {
+		fmt.Printf("\nGoverning Decisions:\n  - %s\n", trace.DecisionID)
+	}
+
+	fmt.Printf("\nMentioned in Conversations (%d):\n", len(trace.Conversations))
+	if len(trace.Conversations) == 0 {
+		fmt.Println("  (no conversations mentioning this file)")
+	} else {
+		for _, conv := range trace.Conversations {
+			sid := fmt.Sprintf("%v", conv["session_id"])
+			stitle := fmt.Sprintf("%v", conv["title"])
+			fmt.Printf("  - [%s] %s\n", sid, stitle)
+		}
+	}
+	fmt.Println("====================================================================================================")
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
+}

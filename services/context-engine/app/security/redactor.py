@@ -44,3 +44,11 @@ def redact_secrets(text: str) -> tuple[str, int]:
             total_redacted += matches
 
     return sanitized, total_redacted
+
+
+class SecretRedactor:
+    """Convenience wrapper around redact_secrets for modular pipelines."""
+
+    def redact_text(self, text: str) -> str:
+        sanitized, _ = redact_secrets(text)
+        return sanitized

@@ -29,4 +29,6 @@ CREATE INDEX symbol_proj_idx IF NOT EXISTS FOR (s:Symbol) ON (s.project_id);
 CREATE INDEX file_proj_idx IF NOT EXISTS FOR (f:File) ON (f.project_id);
 CREATE INDEX decision_status_idx IF NOT EXISTS FOR (d:Decision) ON (d.status);
 CREATE INDEX rule_category_idx IF NOT EXISTS FOR (ru:Rule) ON (ru.category);
+CREATE INDEX commit_author_idx IF NOT EXISTS FOR (c:Commit) ON (c.author);
+CREATE INDEX session_title_idx IF NOT EXISTS FOR (s:Session) ON (s.title);
 
