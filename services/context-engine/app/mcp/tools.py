@@ -184,6 +184,25 @@ KNOVRA_TOOLS: list[ToolDefinition] = [
             "required": ["id", "title", "context", "decision", "consequences"],
         },
     ),
+    ToolDefinition(
+        name="knovra.impact",
+        description="Analyzes direct and transitive change impact for a file, function, class, module, db_table, or API endpoint. Answers 'What might break if this changes?' with graph-backed evidence, recommended tests, and governing ADRs.",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Target entity name or path (e.g. 'fs_watcher.go', 'ComputeDelta', 'chunks', '/semantic/search')"},
+                "target_type": {
+                    "type": "string",
+                    "enum": ["file", "function", "class", "module", "db_table", "api_endpoint", "service"],
+                    "description": "Optional target type. Auto-detected if omitted.",
+                },
+                "max_depth": {"type": "integer", "default": 3, "description": "Maximum transitive traversal depth (1 to 10)"},
+                "include_tests": {"type": "boolean", "default": True, "description": "Include recommended test suites to run"},
+                "include_decisions": {"type": "boolean", "default": True, "description": "Include governing ADRs and rules"},
+            },
+            "required": ["target"],
+        },
+    ),
 ]
 
 

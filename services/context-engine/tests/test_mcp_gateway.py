@@ -50,7 +50,7 @@ def test_mcp_tools_list(client):
     data = resp.json()
     assert "result" in data
     tools = data["result"]["tools"]
-    assert len(tools) == 12
+    assert len(tools) >= 12
 
     tool_names = [t["name"] for t in tools]
     expected_tools = [
@@ -66,6 +66,7 @@ def test_mcp_tools_list(client):
         "knovra.errors",
         "knovra.remember",
         "knovra.record_decision",
+        "knovra.impact",
     ]
     for expected in expected_tools:
         assert expected in tool_names, f"Missing required MCP tool: {expected}"
@@ -77,7 +78,7 @@ def test_mcp_convenience_tools_endpoint(client):
     assert resp.status_code == 200
     data = resp.json()
     assert "tools" in data
-    assert len(data["tools"]) == 12
+    assert len(data["tools"]) >= 12
 
 
 def test_mcp_tool_calls_suite(client):

@@ -38,14 +38,25 @@ pub fn serialize_project_index_json(index: &ProjectIndex) -> String {
             ));
         }
 
+        let mut calls_json = Vec::new();
+        for c in &f.calls {
+            calls_json.push(format!(
+                "{{\"caller\":\"{}\",\"callee\":\"{}\",\"line\":{}}}",
+                escape_json(&c.caller_name),
+                escape_json(&c.callee_name),
+                c.line
+            ));
+        }
+
         files_json.push(format!(
-            "{{\"file_path\":\"{}\",\"language\":\"{}\",\"content_hash\":\"{}\",\"symbols\":[{}],\"imports\":[{}],\"exports\":[{}]}}",
+            "{{\"file_path\":\"{}\",\"language\":\"{}\",\"content_hash\":\"{}\",\"symbols\":[{}],\"imports\":[{}],\"exports\":[{}],\"calls\":[{}]}}",
             escape_json(&f.file_path),
             escape_json(&f.language),
             escape_json(&f.content_hash),
             symbols_json.join(","),
             imports_json.join(","),
-            exports_json.join(",")
+            exports_json.join(","),
+            calls_json.join(",")
         ));
     }
 

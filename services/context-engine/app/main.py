@@ -59,6 +59,12 @@ from app.git_memory import (
     IngestGitResponse,
     LineageTraceResult,
 )
+from app.impact import (
+    ImpactAnalysisRequest,
+    ImpactAnalysisResponse,
+    ImpactAnalyzer,
+    ImpactTargetType,
+)
 from app.mcp import (
     JsonRpcRequest,
     JsonRpcResponse,
@@ -131,6 +137,21 @@ nats_server_url = getattr(settings, "nats_url", "nats://localhost:4222")
 event_bus: ResilientEventBus = ResilientEventBus(nats_url=nats_server_url)
 event_bus.subscribe(event_processor.process_event)
 
+initial_code_index: dict[str, Any] = {}
+code_index_file = settings.repo_root / ".knovra" / "code_index.json" if hasattr(settings, "repo_root") else None
+if code_index_file and code_index_file.exists():
+    try:
+        with open(code_index_file, encoding="utf-8") as f:
+            initial_code_index = json.load(f)
+    except Exception as ex:  # noqa: BLE001
+        logger.warning("Could not load initial .knovra/code_index.json: %s", ex)
+
+impact_analyzer: ImpactAnalyzer = ImpactAnalyzer(
+    decision_store=decision_store,
+    git_store=git_store,
+    code_index_data=initial_code_index,
+)
+
 mcp_gateway: McpGatewayHandler = McpGatewayHandler(
     vector_store=vector_store,
     embedding_provider=embedding_provider,
@@ -139,6 +160,7 @@ mcp_gateway: McpGatewayHandler = McpGatewayHandler(
     git_store=git_store,
     context_planner=context_planner,
     event_bus=event_bus,
+    impact_analyzer=impact_analyzer,
 )
 
 
@@ -768,6 +790,30 @@ async def get_file_activities(limit: int = 50):
 async def get_test_results(limit: int = 50):
     """Returns test execution records tracked from agent activity."""
     return event_processor.get_test_results(limit=limit)
+
+
+# -----------------------------------------------------------------------------
+# Phase 12: Impact Analysis Endpoints
+# -----------------------------------------------------------------------------
+@app.post("/impact/analyze", response_model=ImpactAnalysisResponse)
+async def analyze_impact_endpoint(request: ImpactAnalysisRequest) -> ImpactAnalysisResponse:
+    """Analyzes the direct and transitive impact of changing a target entity."""
+    return await impact_analyzer.analyze(request)
+
+
+@app.get("/impact/target", response_model=ImpactAnalysisResponse)
+async def get_impact_for_target(
+    target: str,
+    target_type: ImpactTargetType | None = None,
+    max_depth: int = 3,
+) -> ImpactAnalysisResponse:
+    """Query parameter convenience endpoint for impact analysis."""
+    req = ImpactAnalysisRequest(
+        target=target,
+        target_type=target_type,
+        max_depth=max_depth,
+    )
+    return await impact_analyzer.analyze(req)
 
 
 if __name__ == "__main__":
