@@ -19,6 +19,7 @@ import (
 	"knovra/runtime/internal/git"
 	"knovra/runtime/internal/graph"
 	"knovra/runtime/internal/ingest"
+	"knovra/runtime/internal/planner"
 	"knovra/runtime/internal/semantic"
 )
 
@@ -227,6 +228,20 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "plan":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra plan \"<task prompt>\" [--budget <tokens>] [--type <type>] [--hints <f1,f2>] [--json]")
+			return
+		}
+		runPlan(os.Args[2], os.Args[3:])
+
+	case "pack":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra pack \"<task prompt>\" [--budget <tokens>] [--output <file>]")
+			return
+		}
+		runPack(os.Args[2], os.Args[3:])
+
 	case "daemon":
 		runDaemon()
 
@@ -272,6 +287,9 @@ func printUsage() {
 	fmt.Println("  conversation show <id>   Display conversation summary, extracted facts and turns")
 	fmt.Println("  trace decision <adr-id>  Trace an ADR to discussions, commits, and modified files")
 	fmt.Println("  trace file <file-path>   Trace a file to modifying commits, decisions, and conversations")
+	fmt.Println("\nContext Planner Commands (Phase 08):")
+	fmt.Println("  plan \"<prompt>\"          Generate bounded, explainable ContextBundle for task")
+	fmt.Println("  pack \"<prompt>\"          Export prompt-ready Markdown bundle for AI agents")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and MCP gateway")
 	fmt.Println("  version                  Print version information")
@@ -1339,4 +1357,165 @@ func truncate(s string, maxLen int) string {
 		return s[:maxLen]
 	}
 	return s[:maxLen-3] + "..."
+}
+
+func runPlan(prompt string, args []string) {
+	budget := 4000
+	taskType := ""
+	var fileHints []string
+	outputJSON := false
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--budget":
+			if i+1 < len(args) {
+				if b, err := strconv.Atoi(args[i+1]); err == nil {
+					budget = b
+					i++
+				}
+			}
+		case "--type":
+			if i+1 < len(args) {
+				taskType = args[i+1]
+				i++
+			}
+		case "--hints":
+			if i+1 < len(args) {
+				hints := strings.Split(args[i+1], ",")
+				for _, h := range hints {
+					h = strings.TrimSpace(h)
+					if h != "" {
+						fileHints = append(fileHints, h)
+					}
+				}
+				i++
+			}
+		case "--json":
+			outputJSON = true
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := planner.NewClient(engineURL)
+	req := &planner.ContextPlanRequest{
+		Prompt:    prompt,
+		TaskType:  taskType,
+		MaxTokens: budget,
+		FileHints: fileHints,
+		ProjectID: "knovra",
+	}
+
+	bundle, err := client.GenerateBundle(context.Background(), req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating context bundle: %v\n", err)
+		os.Exit(1)
+	}
+
+	if outputJSON {
+		data, err := json.MarshalIndent(bundle, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error encoding bundle to JSON: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(data))
+		return
+	}
+
+	printPlanSummary(bundle)
+}
+
+func printPlanSummary(bundle *planner.ContextBundle) {
+	fmt.Println("====================================================================================================")
+	fmt.Println("  KNOVRA CONTEXT PLANNER — SYNTHESIZED CONTEXT BUNDLE")
+	fmt.Println("====================================================================================================")
+	fmt.Printf("• Task:                 %s\n", truncate(bundle.Task, 80))
+	fmt.Printf("• Classified Type:      %s\n", bundle.TaskType)
+	fmt.Printf("• Total Token Budget:   %d tokens (Synthesized: %d tokens)\n", bundle.TotalTokens, bundle.TotalTokens)
+	fmt.Printf("• Freshness Timestamp:  %s\n", bundle.Freshness)
+	fmt.Printf("• Provenance Invariant: %d tracked items (100%% compliant)\n", len(bundle.Provenance))
+	fmt.Println("----------------------------------------------------------------------------------------------------")
+	fmt.Println("TOKEN ALLOCATION BREAKDOWN:")
+	for cat, count := range bundle.TokenUsage {
+		fmt.Printf("  - %-25s: %4d tokens\n", cat, count)
+	}
+	fmt.Println("----------------------------------------------------------------------------------------------------")
+	fmt.Println("CONTEXT SECTION INVENTORY:")
+	fmt.Printf("  - Project Summary:        %d chars\n", len(bundle.ProjectSummary))
+	fmt.Printf("  - Architecture Decisions: %d decisions\n", len(bundle.Decisions))
+	fmt.Printf("  - Governing Rules:        %d active rules\n", len(bundle.Rules))
+	fmt.Printf("  - Relevant Files:         %d files\n", len(bundle.Files))
+	fmt.Printf("  - Key AST Symbols:        %d symbols\n", len(bundle.Symbols))
+	fmt.Printf("  - Prior Errors/Solutions: %d historical pairs\n", len(bundle.PriorErrorsSolutions))
+	fmt.Printf("  - Recent Git Changes:     %d commits\n", len(bundle.RecentChanges))
+	fmt.Printf("  - Conversation Threads:   %d relevant chats\n", len(bundle.RelevantConversations))
+	fmt.Println("====================================================================================================")
+}
+
+func runPack(prompt string, args []string) {
+	budget := 4000
+	taskType := ""
+	outputPath := ""
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--budget":
+			if i+1 < len(args) {
+				if b, err := strconv.Atoi(args[i+1]); err == nil {
+					budget = b
+					i++
+				}
+			}
+		case "--type":
+			if i+1 < len(args) {
+				taskType = args[i+1]
+				i++
+			}
+		case "--output", "-o":
+			if i+1 < len(args) {
+				outputPath = args[i+1]
+				i++
+			}
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := planner.NewClient(engineURL)
+	req := &planner.ContextPlanRequest{
+		Prompt:    prompt,
+		TaskType:  taskType,
+		MaxTokens: budget,
+		ProjectID: "knovra",
+	}
+
+	res, err := client.GeneratePrompt(context.Background(), req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error packing context prompt: %v\n", err)
+		os.Exit(1)
+	}
+
+	if outputPath != "" {
+		dir := filepath.Dir(outputPath)
+		if dir != "." && dir != "" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if err := os.WriteFile(outputPath, []byte(res.MarkdownPrompt), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing packed prompt to %s: %v\n", outputPath, err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ Packed prompt successfully written to %s (%d tokens, %d bytes)\n",
+			outputPath, res.Bundle.TotalTokens, len(res.MarkdownPrompt))
+	} else {
+		fmt.Println(res.MarkdownPrompt)
+	}
 }

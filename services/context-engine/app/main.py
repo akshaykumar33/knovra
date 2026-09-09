@@ -55,6 +55,12 @@ from app.models import (
     SearchResult,
     SemanticStats,
 )
+from app.planner import (
+    ContextBundle,
+    ContextPlanner,
+    ContextPlanRequest,
+    ContextPlanResponse,
+)
 from app.storage.vector_store import BaseVectorStore, ResilientVectorStore
 
 logging.basicConfig(
@@ -88,6 +94,13 @@ chunker: Chunker = Chunker(
 decision_store: DecisionRuleStore = DecisionRuleStore()
 conversation_store: ConversationStore = ConversationStore()
 git_store: GitMemoryStore = GitMemoryStore()
+context_planner: ContextPlanner = ContextPlanner(
+    vector_store=vector_store,
+    embedding_provider=embedding_provider,
+    decision_store=decision_store,
+    conversation_store=conversation_store,
+    git_store=git_store,
+)
 
 
 
@@ -501,6 +514,24 @@ async def trace_file(file_path: str):
         decision_store=decision_store,
         conversation_store=conversation_store,
     )
+
+
+# -----------------------------------------------------------------------------
+# Context Planner Endpoints (Phase 08)
+# -----------------------------------------------------------------------------
+
+
+@app.post("/planner/bundle", response_model=ContextBundle)
+async def generate_context_bundle(request: ContextPlanRequest):
+    """Synthesizes a bounded ContextBundle for a task using the 12-stage pipeline."""
+    response = await context_planner.plan(request)
+    return response.bundle
+
+
+@app.post("/planner/prompt", response_model=ContextPlanResponse)
+async def generate_context_prompt(request: ContextPlanRequest):
+    """Generates both the structured ContextBundle and prompt-ready Markdown."""
+    return await context_planner.plan(request)
 
 
 if __name__ == "__main__":
