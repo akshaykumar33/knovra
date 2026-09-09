@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import Sidebar from '../components/Sidebar';
-import Header from '../components/Header';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 export const metadata: Metadata = {
   title: 'Knovra | Universal Project Intelligence Layer',
@@ -15,19 +15,26 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-mesh-grid" style={{ color: 'var(--text-primary)', margin: 0, padding: 0 }}>
-        <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
-          {/* Sticky Left Navigation Sidebar */}
-          <Sidebar />
+      <body className="bg-mesh-grid" style={{ color: 'var(--text-primary)', margin: 0, padding: 0, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Swivora-style Sticky Frosted Top Navbar */}
+        <Navbar />
 
-          {/* Main Content Area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
-            <Header />
-            <main style={{ flex: 1, padding: '2rem 2.5rem', maxWidth: '1440px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-              {children}
-            </main>
-          </div>
-        </div>
+        {/* Full-width Centered Main Canvas */}
+        <main
+          style={{
+            flex: 1,
+            maxWidth: '1400px',
+            width: '100%',
+            margin: '0 auto',
+            padding: '2.5rem 2rem',
+            boxSizing: 'border-box',
+          }}
+        >
+          {children}
+        </main>
+
+        {/* Swivora-style Structured Footer */}
+        <Footer />
       </body>
     </html>
   );
