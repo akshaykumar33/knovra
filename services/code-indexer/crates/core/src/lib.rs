@@ -4,7 +4,8 @@ pub mod parser;
 pub mod scanner;
 pub mod storage;
 
-use models::{FileIndex, ProjectIndex};
+use models::{FileIndex, IncrementalDelta, ProjectIndex};
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -103,6 +104,156 @@ pub fn index_repository(root: &Path) -> ProjectIndex {
 
     graph::build_project_index(&root.to_string_lossy(), file_indices, now_secs)
 }
+
+// Incremental indexing: re-parses only specified changed files against existing index
+pub fn index_incremental(
+    root: &Path,
+    changed_files: &[&str],
+    previous_index: &ProjectIndex,
+) -> (ProjectIndex, IncrementalDelta) {
+    let mut delta = IncrementalDelta {
+        total_symbols_before: previous_index.total_symbols,
+        ..Default::default()
+    };
+
+    let mut old_files_map: HashMap<String, FileIndex> = HashMap::new();
+    for f in &previous_index.files {
+        old_files_map.insert(f.file_path.clone(), f.clone());
+    }
+
+    let mut new_files_map = old_files_map.clone();
+    let mut invalidated_deps: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    for &rel_path in changed_files {
+        let norm_path = rel_path.replace('\\', "/");
+        let full_path = root.join(&norm_path);
+
+        if full_path.exists() && full_path.is_file() {
+            if let Some(lang) = scanner::detect_file_language(&full_path) {
+                if let Ok(content) = std::fs::read_to_string(&full_path) {
+                    let hash = scanner::compute_sha256(content.as_bytes());
+                    let new_file_index = parser::parse_file(&norm_path, &content, &lang, &hash);
+
+                    if let Some(old_file_index) = old_files_map.get(&norm_path) {
+                        delta.modified_files.push(norm_path.clone());
+
+                        let old_syms: HashMap<String, &models::Symbol> = old_file_index
+                            .symbols
+                            .iter()
+                            .map(|s| (s.name.clone(), s))
+                            .collect();
+                        let new_syms: HashMap<String, &models::Symbol> = new_file_index
+                            .symbols
+                            .iter()
+                            .map(|s| (s.name.clone(), s))
+                            .collect();
+
+                        for (name, new_sym) in &new_syms {
+                            if let Some(old_sym) = old_syms.get(name) {
+                                if old_sym.signature != new_sym.signature || old_sym.line_start != new_sym.line_start {
+                                    delta.changed_symbols.push(models::ChangedSymbol {
+                                        symbol_id: new_sym.id.clone(),
+                                        symbol_name: new_sym.name.clone(),
+                                        kind: new_sym.kind.clone(),
+                                        file_path: norm_path.clone(),
+                                        change_kind: models::ChangeKind::Modified,
+                                        old_signature: Some(old_sym.signature.clone()),
+                                        new_signature: Some(new_sym.signature.clone()),
+                                        line_start: new_sym.line_start,
+                                        line_end: new_sym.line_end,
+                                    });
+                                }
+                            } else {
+                                delta.changed_symbols.push(models::ChangedSymbol {
+                                    symbol_id: new_sym.id.clone(),
+                                    symbol_name: new_sym.name.clone(),
+                                    kind: new_sym.kind.clone(),
+                                    file_path: norm_path.clone(),
+                                    change_kind: models::ChangeKind::Added,
+                                    old_signature: None,
+                                    new_signature: Some(new_sym.signature.clone()),
+                                    line_start: new_sym.line_start,
+                                    line_end: new_sym.line_end,
+                                });
+                            }
+                        }
+
+                        for (name, old_sym) in &old_syms {
+                            if !new_syms.contains_key(name) {
+                                delta.changed_symbols.push(models::ChangedSymbol {
+                                    symbol_id: old_sym.id.clone(),
+                                    symbol_name: old_sym.name.clone(),
+                                    kind: old_sym.kind.clone(),
+                                    file_path: norm_path.clone(),
+                                    change_kind: models::ChangeKind::Deleted,
+                                    old_signature: Some(old_sym.signature.clone()),
+                                    new_signature: None,
+                                    line_start: old_sym.line_start,
+                                    line_end: old_sym.line_end,
+                                });
+                            }
+                        }
+                    } else {
+                        delta.added_files.push(norm_path.clone());
+                        for s in &new_file_index.symbols {
+                            delta.changed_symbols.push(models::ChangedSymbol {
+                                symbol_id: s.id.clone(),
+                                symbol_name: s.name.clone(),
+                                kind: s.kind.clone(),
+                                file_path: norm_path.clone(),
+                                change_kind: models::ChangeKind::Added,
+                                old_signature: None,
+                                new_signature: Some(s.signature.clone()),
+                                line_start: s.line_start,
+                                line_end: s.line_end,
+                            });
+                        }
+                    }
+
+                    new_files_map.insert(norm_path.clone(), new_file_index);
+                }
+            }
+        } else if let Some(old_file_index) = old_files_map.get(&norm_path) {
+            delta.deleted_files.push(norm_path.clone());
+            for s in &old_file_index.symbols {
+                delta.changed_symbols.push(models::ChangedSymbol {
+                    symbol_id: s.id.clone(),
+                    symbol_name: s.name.clone(),
+                    kind: s.kind.clone(),
+                    file_path: norm_path.clone(),
+                    change_kind: models::ChangeKind::Deleted,
+                    old_signature: Some(s.signature.clone()),
+                    new_signature: None,
+                    line_start: s.line_start,
+                    line_end: s.line_end,
+                });
+            }
+            new_files_map.remove(&norm_path);
+        }
+
+        for edge in &previous_index.dependency_edges {
+            if edge.to_file_or_module == norm_path || edge.to_file_or_module.contains(&norm_path) {
+                if edge.from_file != norm_path {
+                    invalidated_deps.insert(edge.from_file.clone());
+                }
+            }
+        }
+    }
+
+    delta.invalidated_dependencies = invalidated_deps.into_iter().collect();
+
+    let updated_files: Vec<FileIndex> = new_files_map.into_values().collect();
+    let now_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let new_project_index = graph::build_project_index(&root.to_string_lossy(), updated_files, now_secs);
+    delta.total_symbols_after = new_project_index.total_symbols;
+
+    (new_project_index, delta)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -208,4 +359,30 @@ mod tests {
         assert!(index.symbols.iter().any(|s| s.name == "Traversal" && s.kind == SymbolKind::Trait));
         assert_eq!(index.imports.len(), 1);
     }
+
+    #[test]
+    fn test_incremental_indexing() {
+        let root = std::env::temp_dir().join(format!("knovra_test_inc_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&root).unwrap();
+
+        let file_a = root.join("service.py");
+        std::fs::write(&file_a, "def calculate_total():\n    return 10\n").unwrap();
+
+        let initial_index = index_repository(&root);
+        assert_eq!(initial_index.total_symbols, 1);
+        assert_eq!(initial_index.files.len(), 1);
+
+        // Modify file_a to add another function
+        std::fs::write(&file_a, "def calculate_total():\n    return 10\n\ndef format_currency():\n    pass\n").unwrap();
+
+        let (new_index, delta) = index_incremental(&root, &["service.py"], &initial_index);
+        assert_eq!(new_index.total_symbols, 2);
+        assert_eq!(delta.modified_files, vec!["service.py"]);
+        assert_eq!(delta.changed_symbols.len(), 1);
+        assert_eq!(delta.changed_symbols[0].symbol_name, "format_currency");
+        assert_eq!(delta.changed_symbols[0].change_kind, models::ChangeKind::Added);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
+

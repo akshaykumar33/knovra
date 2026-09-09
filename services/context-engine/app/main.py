@@ -45,6 +45,13 @@ from app.events import (
     PublishEventResponse,
     ResilientEventBus,
 )
+from app.freshness import (
+    DeltaIndexRequest,
+    DeltaIndexResponse,
+    FileFreshnessSummary,
+    FreshnessMetadata,
+    InvalidationRequest,
+)
 from app.git_memory import (
     GitCommit,
     GitHistoryPayload,
@@ -275,6 +282,112 @@ async def delete_document(document_id: str):
 async def get_stats():
     """Returns vector store inventory, counts by doc type, and model configuration."""
     return await vector_store.get_stats()
+
+
+# ==============================================================================
+# Phase 11 — Incremental Indexing & Freshness Endpoints
+# ==============================================================================
+
+
+@app.post("/semantic/delta", response_model=DeltaIndexResponse)
+async def delta_index(req: DeltaIndexRequest):
+    """Processes incremental code changes without full re-indexing (Phase 11).
+
+    Invalidates obsolete/deleted chunks and embeds only modified/added files.
+    """
+    t0 = time.perf_counter()
+    invalidated_count = 0
+    indexed_chunks = 0
+
+    # 1. Invalidate deleted files
+    for file_path in req.deleted_files:
+        count = await vector_store.invalidate_file(file_path, superseded_by="DELETED")
+        invalidated_count += count
+
+    # 2. Invalidate and re-index modified files
+    for mod_file in req.modified_files:
+        count = await vector_store.invalidate_file(mod_file.path, superseded_by=f"MODIFIED:{int(time.time())}")
+        invalidated_count += count
+
+        doc = DocumentInput(
+            document_id=f"file:{mod_file.path}",
+            project_id=req.project_id,
+            repository_id=req.repository_id,
+            doc_type=DocType.CODE_SUMMARY if mod_file.doc_type == "code_summary" else DocType.DOCUMENT,
+            title=f"Source: {mod_file.path}",
+            content=mod_file.content,
+            provenance=Provenance(
+                file_path=mod_file.path,
+                content_hash=str(hash(mod_file.content)),
+                repo_name=req.repository_id,
+            ),
+            metadata=mod_file.metadata,
+        )
+        chunks = chunker.chunk_document(doc)
+        if chunks:
+            embeddings = await embedding_provider.embed_texts([c.content for c in chunks])
+            for c, emb in zip(chunks, embeddings):
+                c.embedding = emb
+                c.model_name = embedding_provider.model_name
+                c.freshness = FreshnessMetadata()
+            await vector_store.store_chunks(chunks)
+            indexed_chunks += len(chunks)
+
+    # 3. Index added files
+    for add_file in req.added_files:
+        doc = DocumentInput(
+            document_id=f"file:{add_file.path}",
+            project_id=req.project_id,
+            repository_id=req.repository_id,
+            doc_type=DocType.CODE_SUMMARY if add_file.doc_type == "code_summary" else DocType.DOCUMENT,
+            title=f"Source: {add_file.path}",
+            content=add_file.content,
+            provenance=Provenance(
+                file_path=add_file.path,
+                content_hash=str(hash(add_file.content)),
+                repo_name=req.repository_id,
+            ),
+            metadata=add_file.metadata,
+        )
+        chunks = chunker.chunk_document(doc)
+        if chunks:
+            embeddings = await embedding_provider.embed_texts([c.content for c in chunks])
+            for c, emb in zip(chunks, embeddings):
+                c.embedding = emb
+                c.model_name = embedding_provider.model_name
+                c.freshness = FreshnessMetadata()
+            await vector_store.store_chunks(chunks)
+            indexed_chunks += len(chunks)
+
+    # 4. Mark downstream dependents as stale
+    for dep_path in req.invalidated_dependents:
+        count = await vector_store.invalidate_file(dep_path, superseded_by="DEPENDENCY_STALE")
+        invalidated_count += count
+
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    return DeltaIndexResponse(
+        project_id=req.project_id,
+        indexed_chunks=indexed_chunks,
+        invalidated_chunks=invalidated_count,
+        stale_dependents=req.invalidated_dependents,
+        duration_ms=round(elapsed_ms, 2),
+    )
+
+
+@app.post("/semantic/invalidate")
+async def invalidate_semantic_records(req: InvalidationRequest):
+    """Explicitly marks records of target files as stale."""
+    total_invalidated = 0
+    for path in req.file_paths:
+        count = await vector_store.invalidate_file(path, superseded_by=req.reason or "MANUAL_INVALIDATION")
+        total_invalidated += count
+    return {"status": "ok", "invalidated_chunks": total_invalidated, "file_paths": req.file_paths}
+
+
+@app.get("/semantic/freshness", response_model=FileFreshnessSummary)
+async def get_semantic_freshness(file_path: str):
+    """Inspects freshness lifecycle status of an indexed source or doc file."""
+    return await vector_store.get_file_freshness(file_path)
 
 
 # ==============================================================================

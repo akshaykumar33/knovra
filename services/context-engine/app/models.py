@@ -8,6 +8,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.freshness.models import FreshnessMetadata
+
 
 class DocType(str, Enum):
     DOCUMENT = "doc"
@@ -55,6 +57,7 @@ class Chunk(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict, description="Metadata dictionary")
     embedding: list[float] | None = Field(None, description="Vector embedding representation")
     model_name: str | None = Field(None, description="Name and version of embedding model used")
+    freshness: FreshnessMetadata = Field(default_factory=FreshnessMetadata, description="Freshness lifecycle metadata")
 
 
 class SearchQuery(BaseModel):
@@ -64,6 +67,7 @@ class SearchQuery(BaseModel):
     doc_types: list[DocType] | None = Field(None, description="Filter by specific document types")
     top_k: int = Field(10, ge=1, le=100, description="Maximum number of results to return")
     min_score: float = Field(0.0, ge=0.0, le=1.0, description="Minimum cosine similarity threshold")
+    include_stale: bool = Field(False, description="Whether to include stale or superseded chunks")
 
 
 class SearchResult(BaseModel):
@@ -76,6 +80,7 @@ class SearchResult(BaseModel):
     provenance: Provenance
     metadata: dict[str, Any] = Field(default_factory=dict)
     model_name: str | None = None
+    is_stale: bool = False
 
 
 class IndexBatchRequest(BaseModel):

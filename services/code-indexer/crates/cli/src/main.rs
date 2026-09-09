@@ -36,6 +36,15 @@ fn main() {
             let target_dir = if args.len() > 2 { &args[2] } else { "." };
             run_graph(target_dir);
         }
+        "incremental" => {
+            let target_dir = if args.len() > 2 { &args[2] } else { "." };
+            let files: Vec<&str> = if args.len() > 3 {
+                args[3].split(',').collect()
+            } else {
+                Vec::new()
+            };
+            run_incremental(target_dir, &files);
+        }
         "health" => {
             let health = IndexerHealth::new();
             println!("{}", health.to_json());
@@ -60,6 +69,7 @@ fn print_usage() {
     println!("  knovra-indexer <command> [arguments]");
     println!("\nCommands:");
     println!("  scan [path]         Index repository code AST, symbols and save .knovra/code_index.json");
+    println!("  incremental [path] [f1,f2] Update only specified files in .knovra/code_index.json");
     println!("  symbols <file>      List all extracted symbols in a specific source file");
     println!("  query <name>        Search for symbols matching name across the indexed project");
     println!("  graph [path]        Display discovered import and call dependency edges");
@@ -176,3 +186,31 @@ fn run_graph(target: &str) {
     }
     println!("{:-<70}\n", "");
 }
+
+fn run_incremental(target: &str, changed_files: &[&str]) {
+    let root = Path::new(target);
+    println!("Incrementally updating index for {}...", root.display());
+    let start = Instant::now();
+
+    let existing = index_repository(root);
+    let (updated, delta) = knovra_core::index_incremental(root, changed_files, &existing);
+    let duration = start.elapsed();
+
+    if let Err(e) = storage::save_project_index(root, &updated) {
+        eprintln!("Warning: Failed to save code_index.json: {e}");
+    } else {
+        println!("✓ Updated index saved to .knovra/code_index.json");
+    }
+
+    println!("\n======================================================================");
+    println!("  KNOVRA INCREMENTAL INDEXING SUMMARY");
+    println!("======================================================================");
+    println!("• Modified Files:         {}", delta.modified_files.len());
+    println!("• Added Files:            {}", delta.added_files.len());
+    println!("• Deleted Files:          {}", delta.deleted_files.len());
+    println!("• Changed Symbols:        {}", delta.changed_symbols.len());
+    println!("• Total Symbols:          {} -> {}", delta.total_symbols_before, delta.total_symbols_after);
+    println!("• Invalidated Dependents: {}", delta.invalidated_dependencies.len());
+    println!("• Latency:                {:.2?}", duration);
+}
+
