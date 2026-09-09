@@ -48,3 +48,20 @@ WHERE r.scope = '*' OR $file_path STARTS WITH r.scope
 RETURN r.id AS rule_id, r.title AS title, r.severity AS severity, r.instruction AS instruction, r.category AS category
 ORDER BY CASE r.severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END ASC;
 
+// 10. Trace Decision to implementing Commits and modified Files (Phase 07)
+MATCH (d:Decision {id: $decision_id})-[:IMPLEMENTED_BY]->(c:Commit)-[m:MODIFIES]->(f:File)
+RETURN d.id AS decision_id, c.hash AS commit_hash, c.subject AS commit_subject, f.path AS file_path, m.additions AS additions, m.deletions AS deletions
+ORDER BY c.date DESC;
+
+// 11. Trace File to modifying Commits, Authors, and governing Decisions (Phase 07)
+MATCH (f:File {path: $file_path})<-[m:MODIFIES]-(c:Commit)
+OPTIONAL MATCH (c)<-[:IMPLEMENTED_BY]-(d:Decision)
+RETURN f.path AS file_path, c.hash AS commit_hash, c.author AS author, c.date AS commit_date, c.subject AS commit_subject, d.id AS decision_id, d.title AS decision_title
+ORDER BY c.date DESC;
+
+// 12. Trace Decision to discussing Conversation Sessions and Messages (Phase 07)
+MATCH (d:Decision {id: $decision_id})<-[:DISCUSSES]-(s:Session)
+OPTIONAL MATCH (s)-[:HAS_MESSAGE]->(m:Message)
+RETURN d.id AS decision_id, s.id AS session_id, s.title AS session_title, s.created_at AS session_date, count(m) AS message_count
+ORDER BY s.created_at DESC;
+

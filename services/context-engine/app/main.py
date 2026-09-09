@@ -4,6 +4,7 @@ Phase 05 Deliverable: Semantic Memory with pgvector and resilient offline fallba
 Provides semantic retrieval, chunking, and provenance-tracked search for AI agents.
 """
 
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -15,6 +16,15 @@ from pydantic import BaseModel
 
 from app.chunking.chunker import Chunker
 from app.config import settings
+from app.conversation import (
+    ConversationSession,
+    ConversationStore,
+    ExtractedFact,
+    FactType,
+    IngestConversationRequest,
+    IngestConversationResponse,
+    parse_transcript,
+)
 from app.decision import (
     Decision,
     DecisionLineageResponse,
@@ -27,6 +37,13 @@ from app.decision import (
     RuleSeverity,
 )
 from app.embeddings.adapter import BaseEmbeddingProvider, get_embedding_provider
+from app.git_memory import (
+    GitCommit,
+    GitHistoryPayload,
+    GitMemoryStore,
+    IngestGitResponse,
+    LineageTraceResult,
+)
 from app.models import (
     Chunk,
     DocType,
@@ -69,6 +86,8 @@ chunker: Chunker = Chunker(
     overlap_chars=settings.chunk_overlap_chars,
 )
 decision_store: DecisionRuleStore = DecisionRuleStore()
+conversation_store: ConversationStore = ConversationStore()
+git_store: GitMemoryStore = GitMemoryStore()
 
 
 
@@ -327,6 +346,160 @@ async def check_rules(request: RuleCheckRequest):
     return decision_store.evaluate_rules(
         file_paths=request.file_paths,
         contents=request.contents,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Conversation Memory Endpoints (Phase 07)
+# -----------------------------------------------------------------------------
+
+
+@app.post("/conversations/ingest", response_model=IngestConversationResponse, status_code=status.HTTP_201_CREATED)
+async def ingest_conversation(request: IngestConversationRequest):
+    """Ingests and parses conversation transcripts (Claude Code, ChatGPT, Codex, Generic)."""
+    raw_str = json.dumps(request.content) if not isinstance(request.content, str) else request.content
+    session = parse_transcript(
+        data=request.content,
+        fmt=request.format,
+        title=request.title,
+        session_id=request.session_id,
+    )
+    saved_session = conversation_store.add_session(session, raw_content=raw_str)
+
+    fact_counts: dict[str, int] = {}
+    detected_adrs: set[str] = set()
+    for f in saved_session.extracted_facts:
+        fact_counts[f.fact_type.value] = fact_counts.get(f.fact_type.value, 0) + 1
+        for dec in f.related_decisions:
+            detected_adrs.add(dec)
+
+    # Index summary into semantic memory
+    indexed_semantic = False
+    if saved_session.summary:
+        try:
+            doc = DocumentInput(
+                document_id=f"conv:{saved_session.id}",
+                project_id=request.project_id,
+                repository_id="knovra",
+                doc_type=DocType.CONVERSATION,
+                title=saved_session.title,
+                content=f"Conversation: {saved_session.title}\nSummary: {saved_session.summary}",
+                provenance=Provenance(
+                    file_path=saved_session.raw_source_path or f"conversations/{saved_session.id}.json",
+                    content_hash=saved_session.id,
+                    repo_name="knovra",
+                ),
+                metadata={"session_id": saved_session.id, "source_format": saved_session.source_format},
+            )
+            chunks = chunker.chunk_document(doc)
+            if chunks:
+                embeddings = await embedding_provider.embed_texts([c.content for c in chunks])
+                for c, emb in zip(chunks, embeddings):
+                    c.embedding = emb
+                    c.model_name = embedding_provider.model_name
+                await vector_store.store_chunks(chunks)
+            indexed_semantic = True
+        except (RuntimeError, ValueError, KeyError, ConnectionError, OSError) as ex:
+            logger.warning(f"Failed to index conversation summary into semantic memory: {ex}")
+
+    return IngestConversationResponse(
+        session_id=saved_session.id,
+        title=saved_session.title,
+        message_count=len(saved_session.messages),
+        fact_counts=fact_counts,
+        decisions_detected=sorted(detected_adrs),
+        indexed_into_semantic_memory=indexed_semantic,
+    )
+
+
+@app.get("/conversations/sessions", response_model=list[ConversationSession])
+async def list_conversation_sessions(limit: int = 50, offset: int = 0):
+    """Lists imported conversation sessions."""
+    return conversation_store.list_sessions(limit=limit, offset=offset)
+
+
+@app.get("/conversations/sessions/{session_id}", response_model=ConversationSession)
+async def get_conversation_session(session_id: str):
+    """Retrieves a conversation session by ID."""
+    session = conversation_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session '{session_id}' not found")
+    return session
+
+
+@app.get("/conversations/sessions/{session_id}/facts", response_model=list[ExtractedFact])
+async def get_conversation_facts(session_id: str, fact_type: FactType | None = None):
+    """Retrieves extracted facts for a conversation session."""
+    session = conversation_store.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session '{session_id}' not found")
+    return conversation_store.get_facts(session_id, fact_type=fact_type)
+
+
+# -----------------------------------------------------------------------------
+# Git Memory & Lineage Endpoints (Phase 07)
+# -----------------------------------------------------------------------------
+
+
+@app.post("/git/ingest", response_model=IngestGitResponse, status_code=status.HTTP_201_CREATED)
+async def ingest_git_history(payload: GitHistoryPayload):
+    """Ingests Git commit logs, branches, tags, and file diff summaries."""
+    commits_count = git_store.add_commits(payload.commits)
+    git_store.add_branches(payload.branches)
+    git_store.add_tags(payload.tags)
+
+    decisions_linked: dict[str, list[str]] = {}
+    for c in payload.commits:
+        for dec_id in c.linked_decisions:
+            norm_id = dec_id.lower()
+            if norm_id not in decisions_linked:
+                decisions_linked[norm_id] = []
+            decisions_linked[norm_id].append(c.short_hash)
+
+    return IngestGitResponse(
+        commits_ingested=commits_count,
+        branches_ingested=len(payload.branches),
+        tags_ingested=len(payload.tags),
+        decisions_linked=decisions_linked,
+    )
+
+
+@app.get("/git/commits", response_model=list[GitCommit])
+async def list_git_commits(
+    limit: int = 50,
+    offset: int = 0,
+    decision_id: str | None = None,
+):
+    """Queries ingested Git commits with optional decision ID filtering."""
+    return git_store.list_commits(limit=limit, offset=offset, decision_id=decision_id)
+
+
+@app.get("/git/commits/{commit_hash}", response_model=GitCommit)
+async def get_git_commit(commit_hash: str):
+    """Retrieves specific Git commit details by hash or short hash prefix."""
+    commit = git_store.get_commit(commit_hash)
+    if not commit:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Commit '{commit_hash}' not found")
+    return commit
+
+
+@app.get("/trace/decision/{decision_id}", response_model=LineageTraceResult)
+async def trace_decision(decision_id: str):
+    """Cross-domain lineage trace from Decision -> Commits -> Files -> Conversations."""
+    return git_store.trace_decision(
+        decision_id=decision_id,
+        decision_store=decision_store,
+        conversation_store=conversation_store,
+    )
+
+
+@app.get("/trace/file/{file_path:path}", response_model=LineageTraceResult)
+async def trace_file(file_path: str):
+    """Cross-domain lineage trace from File -> Commits -> Decisions -> Conversations."""
+    return git_store.trace_file(
+        file_path=file_path,
+        decision_store=decision_store,
+        conversation_store=conversation_store,
     )
 
 
