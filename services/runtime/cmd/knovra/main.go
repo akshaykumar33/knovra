@@ -19,6 +19,7 @@ import (
 	"knovra/runtime/internal/events"
 	"knovra/runtime/internal/git"
 	"knovra/runtime/internal/graph"
+	"knovra/runtime/internal/impact"
 	"knovra/runtime/internal/ingest"
 	"knovra/runtime/internal/mcp"
 	"knovra/runtime/internal/planner"
@@ -295,6 +296,31 @@ func main() {
 		}
 		runIncrementalIndex(targetDir, incremental)
 
+	case "impact":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra impact <target> [--type <file|function|class|...>] [--depth <3>] [--json]")
+			return
+		}
+		target := os.Args[2]
+		targetType := ""
+		maxDepth := 3
+		outputJSON := false
+
+		for i := 3; i < len(os.Args); i++ {
+			if os.Args[i] == "--type" && i+1 < len(os.Args) {
+				targetType = os.Args[i+1]
+				i++
+			} else if (os.Args[i] == "--depth" || os.Args[i] == "-d") && i+1 < len(os.Args) {
+				if d, err := strconv.Atoi(os.Args[i+1]); err == nil {
+					maxDepth = d
+					i++
+				}
+			} else if os.Args[i] == "--json" {
+				outputJSON = true
+			}
+		}
+		runImpact(target, targetType, maxDepth, outputJSON)
+
 	case "daemon":
 		runDaemon()
 
@@ -351,6 +377,8 @@ func printUsage() {
 	fmt.Println("\nIncremental Indexing & Freshness Commands (Phase 11):")
 	fmt.Println("  watch [path] [--debounce <ms>] Watch repository and process live file changes")
 	fmt.Println("  index --incremental [path]     Perform differential indexing and update freshness")
+	fmt.Println("\nImpact Analysis Commands (Phase 12):")
+	fmt.Println("  impact <target> [--depth <3>]  Estimate direct and transitive change impact for file/symbol/API")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and health probes")
 	fmt.Println("  version                  Print version information")
@@ -1847,5 +1875,88 @@ func runIncrementalIndex(targetDir string, incremental bool) {
 		fmt.Println("✓ Project intelligence is fresh. Zero changes detected.")
 	}
 }
+
+func runImpact(target string, targetType string, maxDepth int, outputJSON bool) {
+	fmt.Printf("Analyzing change impact for: %s...\n", target)
+	client := impact.NewClient("http://localhost:8000", ".")
+	req := impact.AnalysisRequest{
+		Target:            target,
+		TargetType:        impact.TargetType(targetType),
+		MaxDepth:          maxDepth,
+		IncludeTransitive: true,
+		IncludeTests:      true,
+		IncludeDecisions:  true,
+		IncludeCommits:    true,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	res, err := client.Analyze(ctx, req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error performing impact analysis: %v\n", err)
+		os.Exit(1)
+	}
+
+	if outputJSON {
+		data, _ := json.MarshalIndent(res, "", "  ")
+		fmt.Println(string(data))
+		return
+	}
+
+	fmt.Println("\n======================================================================")
+	fmt.Println("  KNOVRA IMPACT ANALYSIS: CHANGE PROPAGATION REPORT")
+	fmt.Println("======================================================================")
+	fmt.Printf("Target Entity:        %s (%s)\n", res.Target, res.TargetType)
+	fmt.Printf("Confidence Score:     %.2f (Graph-Backed: %v)\n", res.ConfidenceScore, res.GraphBacked)
+	fmt.Printf("Execution Latency:    %.2fms\n", res.ExecutionTimeMs)
+	fmt.Printf("Total Impacted:       %d direct, %d transitive\n", len(res.DirectImpacts), len(res.TransitiveImpacts))
+
+	fmt.Printf("\n[DIRECT IMPACT (Depth 1)] (Count: %d)\n", len(res.DirectImpacts))
+	if len(res.DirectImpacts) == 0 {
+		fmt.Println("  None detected.")
+	} else {
+		for _, d := range res.DirectImpacts {
+			crit := ""
+			if d.Critical {
+				crit = " [CRITICAL]"
+			}
+			fmt.Printf("  • [%s] %s%s: %s (confidence: %.2f)\n", d.TargetType, d.Name, crit, d.Reason, d.Confidence)
+		}
+	}
+
+	if len(res.TransitiveImpacts) > 0 {
+		fmt.Printf("\n[TRANSITIVE IMPACT (Depth 2-%d)] (Count: %d)\n", maxDepth, len(res.TransitiveImpacts))
+		for _, tr := range res.TransitiveImpacts {
+			fmt.Printf("  • [%s] %s (depth %d): %s\n", tr.TargetType, tr.Name, tr.Distance, tr.Reason)
+		}
+	}
+
+	if len(res.CriticalPaths) > 0 {
+		fmt.Printf("\n[CRITICAL PROPAGATION PATHS] (Count: %d)\n", len(res.CriticalPaths))
+		for _, cp := range res.CriticalPaths {
+			fmt.Printf("  ⚠ Path: %s\n    Risk: %s | %s\n", strings.Join(cp.Path, " -> "), cp.RiskLevel, cp.Description)
+		}
+	}
+
+	fmt.Printf("\n[RECOMMENDED TEST SUITES TO RUN] (Count: %d)\n", len(res.TestsToRun))
+	if len(res.TestsToRun) == 0 {
+		fmt.Println("  None detected.")
+	} else {
+		for i, t := range res.TestsToRun {
+			fmt.Printf("  %d. [%s] %s\n     Reason: %s\n", i+1, strings.ToUpper(t.Priority), t.TestFile, t.Reason)
+		}
+	}
+
+	if len(res.RelatedDecisions) > 0 {
+		fmt.Printf("\n[GOVERNING ARCHITECTURAL DECISIONS (ADRs)] (Count: %d)\n", len(res.RelatedDecisions))
+		for _, rdec := range res.RelatedDecisions {
+			fmt.Printf("  • %s: %s [%s]\n    Rationale: %s\n", rdec.DecisionID, rdec.Title, rdec.Status, rdec.Reason)
+		}
+	}
+
+	fmt.Println("======================================================================")
+}
+
 
 

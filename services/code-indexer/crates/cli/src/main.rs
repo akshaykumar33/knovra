@@ -45,6 +45,15 @@ fn main() {
             };
             run_incremental(target_dir, &files);
         }
+        "impact" => {
+            if args.len() < 3 {
+                eprintln!("Error: 'impact' requires a target (file path or symbol name). Example: knovra-indexer impact fs_watcher.go");
+                std::process::exit(1);
+            }
+            let target = &args[2];
+            let root_dir = if args.len() > 3 { &args[3] } else { "." };
+            run_impact(target, root_dir);
+        }
         "health" => {
             let health = IndexerHealth::new();
             println!("{}", health.to_json());
@@ -70,6 +79,7 @@ fn print_usage() {
     println!("\nCommands:");
     println!("  scan [path]         Index repository code AST, symbols and save .knovra/code_index.json");
     println!("  incremental [path] [f1,f2] Update only specified files in .knovra/code_index.json");
+    println!("  impact <target>     Perform reverse dependency & caller impact lookup for file or symbol");
     println!("  symbols <file>      List all extracted symbols in a specific source file");
     println!("  query <name>        Search for symbols matching name across the indexed project");
     println!("  graph [path]        Display discovered import and call dependency edges");
@@ -213,4 +223,101 @@ fn run_incremental(target: &str, changed_files: &[&str]) {
     println!("• Invalidated Dependents: {}", delta.invalidated_dependencies.len());
     println!("• Latency:                {:.2?}", duration);
 }
+
+fn run_impact(target: &str, root_dir: &str) {
+    let root = Path::new(root_dir);
+    println!("Analyzing impact for target: '{target}' in {}...", root.display());
+    let start = Instant::now();
+    let index = index_repository(root);
+
+    let norm_target = target.replace('\\', "/");
+    let mut direct_callers = Vec::new();
+    let mut direct_importers = Vec::new();
+    let mut related_tests = Vec::new();
+
+    // 1. Direct callers & reverse dependencies
+    for f in &index.files {
+        let fpath = f.file_path.replace('\\', "/");
+        let is_test = fpath.ends_with("_test.go") || fpath.contains("test_") || fpath.ends_with("_test.rs") || fpath.contains("/tests/");
+
+        // Check if file calls the target symbol
+        for c in &f.calls {
+            if c.callee_name.eq_ignore_ascii_case(target) || c.callee_name.contains(target) {
+                direct_callers.push(format!("{} -> {} (line {})", f.file_path, c.caller_name, c.line));
+            }
+        }
+
+        // Check if file imports target
+        for imp in &f.imports {
+            if imp.module_path.contains(&norm_target) || imp.imported_symbol.eq_ignore_ascii_case(target) {
+                if is_test {
+                    related_tests.push(f.file_path.clone());
+                } else {
+                    direct_importers.push(f.file_path.clone());
+                }
+            }
+        }
+    }
+
+    // 2. Check dependency edges for reverse links
+    for edge in &index.dependency_edges {
+        let to_norm = edge.to_file_or_module.replace('\\', "/");
+        if to_norm.contains(&norm_target) && edge.from_file != norm_target {
+            let from_norm = edge.from_file.replace('\\', "/");
+            let is_test = from_norm.ends_with("_test.go") || from_norm.contains("test_") || from_norm.ends_with("_test.rs") || from_norm.contains("/tests/");
+            if is_test {
+                if !related_tests.contains(&edge.from_file) {
+                    related_tests.push(edge.from_file.clone());
+                }
+            } else if !direct_importers.contains(&edge.from_file) {
+                direct_importers.push(edge.from_file.clone());
+            }
+        }
+    }
+
+    // 3. Find direct unit test for target file
+    let base_name = Path::new(target).file_stem().and_then(|s| s.to_str()).unwrap_or(target);
+    for f in &index.files {
+        let fpath = f.file_path.replace('\\', "/");
+        if (fpath.contains(base_name) && (fpath.ends_with("_test.go") || fpath.contains("test_") || fpath.ends_with("_test.rs"))) && !related_tests.contains(&f.file_path) {
+            related_tests.push(f.file_path.clone());
+        }
+    }
+
+    let duration = start.elapsed();
+
+    println!("\n======================================================================");
+    println!("  KNOVRA CODE INTELLIGENCE: IMPACT ANALYSIS");
+    println!("======================================================================");
+    println!("Target:               {target}");
+    println!("Analysis Duration:    {:.2?}", duration);
+    println!("\n[DIRECT IMPORTERS / DEPENDENTS] (Count: {})", direct_importers.len());
+    if direct_importers.is_empty() {
+        println!("  None found.");
+    } else {
+        for imp in &direct_importers {
+            println!("  • {imp}");
+        }
+    }
+
+    println!("\n[DIRECT CALLERS] (Count: {})", direct_callers.len());
+    if direct_callers.is_empty() {
+        println!("  None found.");
+    } else {
+        for call in &direct_callers {
+            println!("  • {call}");
+        }
+    }
+
+    println!("\n[RECOMMENDED TESTS TO RUN] (Count: {})", related_tests.len());
+    if related_tests.is_empty() {
+        println!("  None detected.");
+    } else {
+        for t in &related_tests {
+            println!("  ✓ {t}");
+        }
+    }
+    println!("======================================================================\n");
+}
+
 

@@ -15,6 +15,7 @@ from app.decision import Decision, DecisionRuleStore, DecisionStatus
 from app.embeddings.adapter import BaseEmbeddingProvider
 from app.events import AgentEvent, EventBus, EventType
 from app.git_memory import GitMemoryStore
+from app.impact import ImpactAnalysisRequest, ImpactAnalyzer
 from app.mcp.models import (
     ContentItem,
     JsonRpcError,
@@ -32,7 +33,7 @@ logger = logging.getLogger("knovra.mcp-gateway")
 
 
 class McpGatewayHandler:
-    """Handles JSON-RPC 2.0 protocol and executes the 12 Knovra MCP tools."""
+    """Handles JSON-RPC 2.0 protocol and executes Knovra MCP tools."""
 
     def __init__(
         self,
@@ -43,6 +44,7 @@ class McpGatewayHandler:
         git_store: GitMemoryStore,
         context_planner: ContextPlanner,
         event_bus: EventBus | None = None,
+        impact_analyzer: ImpactAnalyzer | None = None,
     ) -> None:
         self.vector_store = vector_store
         self.embedding_provider = embedding_provider
@@ -51,6 +53,7 @@ class McpGatewayHandler:
         self.git_store = git_store
         self.context_planner = context_planner
         self.event_bus = event_bus
+        self.impact_analyzer = impact_analyzer
         self.redactor = SecretRedactor()
 
     async def handle_request(self, req: JsonRpcRequest) -> JsonRpcResponse:
@@ -145,6 +148,8 @@ class McpGatewayHandler:
                 text = await self._tool_remember(args)
             elif tool_name == "knovra.record_decision":
                 text = self._tool_record_decision(args)
+            elif tool_name in {"knovra.impact", "knovra.impact_analysis"}:
+                text = await self._tool_impact(args)
             else:
                 text = f"Tool handler not implemented for {tool_name}"
 
@@ -497,3 +502,60 @@ class McpGatewayHandler:
         if supersedes:
             msg += f" (Supersedes {supersedes})"
         return msg
+
+    async def _tool_impact(self, args: dict[str, Any]) -> str:
+        target = args.get("target", "")
+        if not target:
+            return "Error: 'target' parameter is required for impact analysis."
+        if not self.impact_analyzer:
+            return "Error: Impact analyzer is not initialized in gateway."
+
+        req = ImpactAnalysisRequest(
+            target=target,
+            target_type=args.get("target_type"),
+            max_depth=args.get("max_depth", 3),
+            include_tests=args.get("include_tests", True),
+            include_decisions=args.get("include_decisions", True),
+        )
+        res = await self.impact_analyzer.analyze(req)
+
+        lines = [
+            f"### Knovra Impact Analysis: '{res.target}' ({res.target_type.value})",
+            f"- **Confidence Score**: {res.confidence_score} (Graph-Backed, Deterministic)",
+            f"- **Execution Time**: {res.execution_time_ms}ms",
+            f"- **Direct Impacts (Depth 1)**: {len(res.direct_impacts)}",
+            f"- **Transitive Dependents (Depth 2-{req.max_depth})**: {len(res.transitive_impacts)}",
+            f"- **Recommended Tests to Run**: {len(res.tests_to_run)}",
+            f"- **Governing Decisions & Rules**: {len(res.related_decisions)}",
+            "",
+            "#### Direct Impacts:",
+        ]
+        if res.direct_impacts:
+            for d in res.direct_impacts:
+                crit = " [CRITICAL]" if d.critical else ""
+                lines.append(f"- `[{d.target_type.value}]` **{d.name}**{crit}: {d.reason} (confidence: {d.confidence})")
+        else:
+            lines.append("- None detected.")
+
+        if res.transitive_impacts:
+            lines.append("\n#### Transitive Dependents:")
+            for t in res.transitive_impacts[:10]:
+                lines.append(f"- `[{t.target_type.value}]` **{t.name}** (depth {t.distance}): {t.reason}")
+
+        if res.tests_to_run:
+            lines.append("\n#### Recommended Test Suites to Run:")
+            for test in res.tests_to_run:
+                lines.append(f"- `[{test.priority.upper()}]` `{test.test_file}`: {test.reason}")
+
+        if res.critical_paths:
+            lines.append("\n#### Critical Propagation Paths:")
+            for cp in res.critical_paths:
+                lines.append(f"- `{ ' -> '.join(cp.path) }`: {cp.description}")
+
+        if res.related_decisions:
+            lines.append("\n#### Governing Decisions (ADRs):")
+            for rdec in res.related_decisions:
+                lines.append(f"- **{rdec.decision_id}** ({rdec.title}): {rdec.reason}")
+
+        return "\n".join(lines)
+
