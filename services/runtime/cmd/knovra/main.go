@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"knovra/runtime/internal/daemon"
 	"knovra/runtime/internal/graph"
 	"knovra/runtime/internal/ingest"
+	"knovra/runtime/internal/semantic"
 )
 
 const Version = "0.1.0"
@@ -83,6 +86,33 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "semantic":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra semantic <index|query|stats> [arguments]")
+			return
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "index":
+			targetDir := "."
+			if len(os.Args) > 3 {
+				targetDir = os.Args[3]
+			}
+			runSemanticIndex(targetDir)
+		case "query":
+			if len(os.Args) < 4 {
+				fmt.Println("Usage: knovra semantic query \"<query text>\" [--type <doc_type>] [--top-k <k>] [--min-score <s>]")
+				return
+			}
+			queryText := os.Args[3]
+			runSemanticQuery(queryText, os.Args[4:])
+		case "stats":
+			runSemanticStats()
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown semantic subcommand: %s (choose index, query, stats)\n", subcmd)
+			os.Exit(1)
+		}
+
 	case "daemon":
 		runDaemon()
 
@@ -109,6 +139,10 @@ func printUsage() {
 	fmt.Println("  graph sync [path]        Transform code index into Neo4j graph and export Cypher")
 	fmt.Println("  graph export [path]      Export Cypher batch transaction script to .knovra/")
 	fmt.Println("  graph stats [path]       Display summary of graph nodes, relationships and provenance")
+	fmt.Println("\nSemantic Memory Commands (Phase 05):")
+	fmt.Println("  semantic index [path]    Chunk and embed project docs, AST symbols and module summaries")
+	fmt.Println("  semantic query \"<text>\"  Semantic vector search across project knowledge with provenance")
+	fmt.Println("  semantic stats           Show vector store inventory and embedding model details")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and MCP gateway")
 	fmt.Println("  version                  Print version information")
@@ -339,4 +373,141 @@ func runDaemon() {
 
 	_ = server.Shutdown(shutdownCtx)
 	fmt.Println("Daemon stopped successfully.")
+}
+
+func runSemanticIndex(targetDir string) {
+	absPath, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Collecting project artifacts and code symbols for semantic indexing from %s...\n", absPath)
+	indexer := semantic.NewProjectIndexer(absPath)
+	artifacts, err := indexer.CollectArtifacts()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error collecting artifacts: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Collected %d artifacts (docs, symbols, module summaries).\n", len(artifacts))
+
+	// Save local cache for offline execution (Invariant #7)
+	knovraDir := filepath.Join(absPath, ".knovra")
+	_ = os.MkdirAll(knovraDir, 0755)
+	if data, err := json.MarshalIndent(artifacts, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(knovraDir, "semantic_artifacts.json"), data, 0644)
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := semantic.NewClient(engineURL)
+	resp, err := client.IndexBatch(artifacts, true)
+	if err != nil {
+		fmt.Printf("ℹ️  Context engine is currently offline at %s: %v\n", engineURL, err)
+		fmt.Printf("✓ Preserved %d artifacts in .knovra/semantic_artifacts.json (ready for ingestion once service starts)\n", len(artifacts))
+		return
+	}
+
+	fmt.Printf("✓ Successfully indexed %d documents (%d chunks) into semantic memory!\n", resp.IndexedDocuments, resp.IndexedChunks)
+	fmt.Printf("  Model: %s | Time: %.2fms\n", resp.ModelName, resp.ElapsedMs)
+	fmt.Println("Breakdown by type:")
+	for t, count := range resp.DocTypes {
+		fmt.Printf("  - %-16s: %d\n", t, count)
+	}
+}
+
+func runSemanticQuery(queryText string, args []string) {
+	topK := 5
+	minScore := 0.0
+	var docTypes []semantic.DocType
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--top-k":
+			if i+1 < len(args) {
+				if k, err := strconv.Atoi(args[i+1]); err == nil {
+					topK = k
+					i++
+				}
+			}
+		case "--min-score":
+			if i+1 < len(args) {
+				if s, err := strconv.ParseFloat(args[i+1], 64); err == nil {
+					minScore = s
+					i++
+				}
+			}
+		case "--type":
+			if i+1 < len(args) {
+				docTypes = append(docTypes, semantic.DocType(args[i+1]))
+				i++
+			}
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := semantic.NewClient(engineURL)
+	results, err := client.Search(queryText, docTypes, topK, minScore)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error querying semantic memory (%s): %v\n", engineURL, err)
+		fmt.Println("Hint: Start the services with 'docker compose up -d' or start the context-engine.")
+		os.Exit(1)
+	}
+
+	if len(results) == 0 {
+		fmt.Printf("No matching semantic artifacts found for query: %q\n", queryText)
+		return
+	}
+
+	fmt.Printf("\n=== Semantic Search Results for: %q (%d found) ===\n\n", queryText, len(results))
+	for i, r := range results {
+		fmt.Printf("[%d] Score: %.4f | Type: %s | Title: %s\n", i+1, r.Score, r.DocType, r.Title)
+		loc := r.Provenance.FilePath
+		if r.Provenance.LineStart != nil {
+			loc = fmt.Sprintf("%s:%d-%d", loc, *r.Provenance.LineStart, *r.Provenance.LineEnd)
+		}
+		fmt.Printf("    Location: %s (hash: %s)\n", loc, r.Provenance.ContentHash[:12])
+		
+		snippet := r.Content
+		if len(snippet) > 180 {
+			snippet = snippet[:180] + "..."
+		}
+		fmt.Printf("    Snippet:  %s\n\n", strings.ReplaceAll(snippet, "\n", " "))
+	}
+}
+
+func runSemanticStats() {
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := semantic.NewClient(engineURL)
+	stats, err := client.GetStats()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error querying semantic stats: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("======================================================================")
+	fmt.Println("                 KNOVRA SEMANTIC MEMORY STATS                         ")
+	fmt.Println("======================================================================")
+	fmt.Printf("Storage Backend:   %s\n", stats.StorageBackend)
+	fmt.Printf("Embedding Model:   %s\n", stats.EmbeddingModel)
+	fmt.Printf("Vector Dimension:  %d\n", stats.VectorDimension)
+	fmt.Printf("Total Documents:   %d\n", stats.TotalDocuments)
+	fmt.Printf("Total Chunks:      %d\n", stats.TotalChunks)
+	fmt.Println("\nDocuments by Type:")
+	for t, count := range stats.ByDocType {
+		fmt.Printf("  - %-16s %4d\n", t, count)
+	}
+	fmt.Println("======================================================================")
 }
