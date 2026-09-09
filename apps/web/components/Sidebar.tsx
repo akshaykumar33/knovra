@@ -144,47 +144,7 @@ export default function Sidebar() {
           </span>
         </div>
 
-        {/* Search Command Box Button */}
-        <div style={{ padding: '0.85rem 1rem 0.4rem 1rem' }}>
-          <button
-            onClick={() => {
-              const searchInput = document.getElementById('global-search-input');
-              if (searchInput) searchInput.focus();
-            }}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '7px 10px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border-default)',
-              color: 'var(--text-muted)',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              transition: 'border-color 0.15s ease',
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Command size={13} />
-              <span>Search docs, symbols...</span>
-            </span>
-            <kbd
-              style={{
-                fontSize: '0.68rem',
-                fontFamily: 'var(--font-mono)',
-                backgroundColor: 'var(--bg-secondary)',
-                padding: '1px 5px',
-                borderRadius: '3px',
-                border: '1px solid var(--border-subtle)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Ctrl+K
-            </kbd>
-          </button>
-        </div>
+
 
         {/* Grouped Navigation Sections */}
         <nav
