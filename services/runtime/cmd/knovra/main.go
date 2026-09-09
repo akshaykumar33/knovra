@@ -23,6 +23,7 @@ import (
 	"knovra/runtime/internal/mcp"
 	"knovra/runtime/internal/planner"
 	"knovra/runtime/internal/semantic"
+	"knovra/runtime/internal/watcher"
 )
 
 const Version = "0.1.0"
@@ -267,6 +268,33 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "watch":
+		targetDir := "."
+		debounceMs := 250
+		for i := 2; i < len(os.Args); i++ {
+			if os.Args[i] == "--debounce" && i+1 < len(os.Args) {
+				if d, err := strconv.Atoi(os.Args[i+1]); err == nil {
+					debounceMs = d
+					i++
+				}
+			} else if !strings.HasPrefix(os.Args[i], "-") {
+				targetDir = os.Args[i]
+			}
+		}
+		runWatch(targetDir, debounceMs)
+
+	case "index":
+		targetDir := "."
+		incremental := false
+		for i := 2; i < len(os.Args); i++ {
+			if os.Args[i] == "--incremental" || os.Args[i] == "-i" {
+				incremental = true
+			} else if !strings.HasPrefix(os.Args[i], "-") {
+				targetDir = os.Args[i]
+			}
+		}
+		runIncrementalIndex(targetDir, incremental)
+
 	case "daemon":
 		runDaemon()
 
@@ -320,6 +348,9 @@ func printUsage() {
 	fmt.Println("\nAgent Event System Commands (Phase 10):")
 	fmt.Println("  event emit <type> [args] Emit an agent activity or lifecycle event into Knovra")
 	fmt.Println("  event list [--limit <n>] List recent agent activity events and learning timeline")
+	fmt.Println("\nIncremental Indexing & Freshness Commands (Phase 11):")
+	fmt.Println("  watch [path] [--debounce <ms>] Watch repository and process live file changes")
+	fmt.Println("  index --incremental [path]     Perform differential indexing and update freshness")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and health probes")
 	fmt.Println("  version                  Print version information")
@@ -1710,4 +1741,111 @@ func runEventList(args []string) {
 	}
 	fmt.Println("====================================================================================================")
 }
+
+func runWatch(targetDir string, debounceMs int) {
+	absPath, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Starting Knovra real-time watcher on %s (debounce=%dms)...\n", absPath, debounceMs)
+	knovraDir := filepath.Join(absPath, ".knovra")
+	hashFile := filepath.Join(knovraDir, "hash_cache.json")
+
+	cache := watcher.NewHashCache()
+	_ = cache.LoadFromFile(hashFile)
+
+	w := watcher.NewFSWatcher(absPath, cache)
+	initial, err := w.ScanChanges()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error scanning initial state: %v\n", err)
+		os.Exit(1)
+	}
+	_ = cache.SaveToFile(hashFile)
+
+	fmt.Printf("✓ Baseline indexed: %d tracked files in hash cache\n", len(cache.All()))
+	if len(initial) > 0 {
+		fmt.Printf("• Initial detected events: %d files\n", len(initial))
+	}
+	fmt.Println("• Watching for changes... Press Ctrl+C to stop.")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		fmt.Println("\nStopping watcher...")
+		cancel()
+	}()
+
+	interval := 200 * time.Millisecond
+	debounce := time.Duration(debounceMs) * time.Millisecond
+
+	w.Watch(ctx, interval, debounce, func(events []watcher.FileChangeEvent) {
+		delta := watcher.ComputeDelta(events, nil)
+		fmt.Printf("\n[%s] ⚡ Detected %d changes in repository:\n",
+			time.Now().Format("15:04:05"), len(events))
+		for _, e := range events {
+			fmt.Printf("  • %-10s %s\n", string(e.ChangeType), e.Path)
+		}
+		if len(delta.InvalidatedDependencies) > 0 {
+			fmt.Printf("  ⚠️ Invalidated %d downstream dependents\n", len(delta.InvalidatedDependencies))
+		}
+		_ = cache.SaveToFile(hashFile)
+	})
+}
+
+func runIncrementalIndex(targetDir string, incremental bool) {
+	absPath, err := filepath.Abs(targetDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving path: %v\n", err)
+		os.Exit(1)
+	}
+
+	knovraDir := filepath.Join(absPath, ".knovra")
+	hashFile := filepath.Join(knovraDir, "hash_cache.json")
+
+	cache := watcher.NewHashCache()
+	if incremental {
+		_ = cache.LoadFromFile(hashFile)
+	}
+
+	w := watcher.NewFSWatcher(absPath, cache)
+	start := time.Now()
+	events, err := w.ScanChanges()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error scanning changes: %v\n", err)
+		os.Exit(1)
+	}
+
+	_ = cache.SaveToFile(hashFile)
+	delta := watcher.ComputeDelta(events, nil)
+	duration := time.Since(start)
+
+	fmt.Println("====================================================================================================")
+	fmt.Println("  KNOVRA INCREMENTAL INDEXING & FRESHNESS")
+	fmt.Println("====================================================================================================")
+	fmt.Printf("• Root Directory:        %s\n", absPath)
+	fmt.Printf("• Mode:                  %s\n", map[bool]string{true: "Incremental Delta", false: "Full Baseline"}[incremental])
+	fmt.Printf("• Total Tracked Files:   %d files\n", len(cache.All()))
+	fmt.Printf("• Modified Files:        %d files\n", len(delta.ModifiedFiles))
+	fmt.Printf("• Added Files:           %d files\n", len(delta.AddedFiles))
+	fmt.Printf("• Deleted Files:         %d files\n", len(delta.DeletedFiles))
+	fmt.Printf("• Total Changes:         %d events\n", len(events))
+	fmt.Printf("• Invalidation Latency:  %v\n", duration)
+	fmt.Println("====================================================================================================")
+	if len(events) > 0 {
+		fmt.Println("CHANGED FILES BREAKDOWN:")
+		for _, e := range events {
+			fmt.Printf("  [%-8s] %s (hash: %s)\n", e.ChangeType, e.Path, truncate(e.ContentHash, 12))
+		}
+		fmt.Println("====================================================================================================")
+	} else {
+		fmt.Println("✓ Project intelligence is fresh. Zero changes detected.")
+	}
+}
+
 

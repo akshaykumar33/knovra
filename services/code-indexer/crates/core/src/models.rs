@@ -94,3 +94,45 @@ impl Symbol {
         format!("sym::{file_path}::{line_start}::{}::{name}", kind.as_str())
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ChangeKind {
+    Added,
+    Modified,
+    Deleted,
+}
+
+impl ChangeKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ChangeKind::Added => "added",
+            ChangeKind::Modified => "modified",
+            ChangeKind::Deleted => "deleted",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedSymbol {
+    pub symbol_id: String,
+    pub symbol_name: String,
+    pub kind: SymbolKind,
+    pub file_path: String,
+    pub change_kind: ChangeKind,
+    pub old_signature: Option<String>,
+    pub new_signature: Option<String>,
+    pub line_start: usize,
+    pub line_end: usize,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct IncrementalDelta {
+    pub modified_files: Vec<String>,
+    pub added_files: Vec<String>,
+    pub deleted_files: Vec<String>,
+    pub changed_symbols: Vec<ChangedSymbol>,
+    pub invalidated_dependencies: Vec<String>,
+    pub total_symbols_before: usize,
+    pub total_symbols_after: usize,
+}
+

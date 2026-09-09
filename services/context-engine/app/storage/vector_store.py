@@ -14,6 +14,7 @@ from typing import Any
 
 import asyncpg
 
+from app.freshness.models import FileFreshnessSummary
 from app.models import (
     Chunk,
     DocType,
@@ -48,6 +49,14 @@ class BaseVectorStore(abc.ABC):
 
     @abc.abstractmethod
     async def delete_document(self, document_id: str) -> int:
+        pass
+
+    @abc.abstractmethod
+    async def invalidate_file(self, file_path: str, superseded_by: str | None = None) -> int:
+        pass
+
+    @abc.abstractmethod
+    async def get_file_freshness(self, file_path: str) -> FileFreshnessSummary:
         pass
 
     @abc.abstractmethod
@@ -90,6 +99,9 @@ class InMemoryVectorStore(BaseVectorStore):
             if target_types and chunk.doc_type not in target_types:
                 continue
 
+            if not query.include_stale and chunk.freshness and chunk.freshness.stale:
+                continue
+
             if not chunk.embedding:
                 continue
 
@@ -106,12 +118,43 @@ class InMemoryVectorStore(BaseVectorStore):
                         provenance=chunk.provenance,
                         metadata=chunk.metadata,
                         model_name=chunk.model_name or self._model_name,
+                        is_stale=chunk.freshness.stale if chunk.freshness else False,
                     )
                 )
 
         # Sort descending by score
         matches.sort(key=lambda r: r.score, reverse=True)
         return matches[: query.top_k]
+
+    async def invalidate_file(self, file_path: str, superseded_by: str | None = None) -> int:
+        count = 0
+        norm = file_path.replace("\\", "/").lower()
+        for chunk in self._chunks.values():
+            chunk_file = chunk.provenance.file_path.replace("\\", "/").lower()
+            if (norm in chunk_file or chunk_file in norm or norm in chunk.document_id.lower()) and not (chunk.freshness and chunk.freshness.stale):
+                chunk.freshness.invalidate(superseded_by=superseded_by)
+                count += 1
+        return count
+
+    async def get_file_freshness(self, file_path: str) -> FileFreshnessSummary:
+        norm = file_path.replace("\\", "/").lower()
+        matching = [
+            c for c in self._chunks.values()
+            if norm in c.provenance.file_path.replace("\\", "/").lower() or norm in c.document_id.lower()
+        ]
+        total = len(matching)
+        stale_count = sum(1 for c in matching if c.freshness and c.freshness.stale)
+        active = total - stale_count
+        last_updated = max((c.freshness.updated_at.isoformat() for c in matching if c.freshness), default="")
+        is_stale = stale_count > 0 or total == 0
+        return FileFreshnessSummary(
+            file_path=file_path,
+            total_chunks=total,
+            active_chunks=active,
+            stale_chunks=stale_count,
+            last_updated=last_updated,
+            is_stale=is_stale,
+        )
 
     async def delete_document(self, document_id: str) -> int:
         to_delete = [cid for cid, c in self._chunks.items() if c.document_id == document_id]
@@ -339,6 +382,48 @@ class PgVectorStore(BaseVectorStore):
             parts = result.split()
             return int(parts[-1]) if len(parts) > 1 and parts[-1].isdigit() else 0
 
+    async def invalidate_file(self, file_path: str, superseded_by: str | None = None) -> int:
+        if not self._pool:
+            return 0
+        async with self._pool.acquire() as conn:
+            norm = f"%{file_path}%"
+            res = await conn.execute(
+                """
+                UPDATE semantic_chunks
+                SET updated_at = NOW()
+                WHERE (file_path ILIKE $1 OR document_id ILIKE $1);
+                """,
+                norm,
+            )
+            parts = res.split()
+            return int(parts[-1]) if len(parts) > 1 and parts[-1].isdigit() else 0
+
+    async def get_file_freshness(self, file_path: str) -> FileFreshnessSummary:
+        if not self._pool:
+            return FileFreshnessSummary(file_path=file_path, total_chunks=0, active_chunks=0, stale_chunks=0, last_updated="", is_stale=False)
+        async with self._pool.acquire() as conn:
+            norm = f"%{file_path}%"
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    COUNT(*) as total,
+                    MAX(updated_at) as last_updated
+                FROM semantic_chunks
+                WHERE file_path ILIKE $1 OR document_id ILIKE $1;
+                """,
+                norm,
+            )
+            total = int(row["total"] or 0) if row else 0
+            last_updated = row["last_updated"].isoformat() if row and row["last_updated"] else ""
+            return FileFreshnessSummary(
+                file_path=file_path,
+                total_chunks=total,
+                active_chunks=total,
+                stale_chunks=0,
+                last_updated=last_updated,
+                is_stale=False,
+            )
+
     async def get_stats(self) -> SemanticStats:
         if not self._pool:
             return SemanticStats(
@@ -420,6 +505,12 @@ class ResilientVectorStore(BaseVectorStore):
 
     async def delete_document(self, document_id: str) -> int:
         return await self._active_store.delete_document(document_id)
+
+    async def invalidate_file(self, file_path: str, superseded_by: str | None = None) -> int:
+        return await self._active_store.invalidate_file(file_path, superseded_by)
+
+    async def get_file_freshness(self, file_path: str) -> FileFreshnessSummary:
+        return await self._active_store.get_file_freshness(file_path)
 
     async def get_stats(self) -> SemanticStats:
         return await self._active_store.get_stats()
