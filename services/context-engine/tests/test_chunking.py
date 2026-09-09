@@ -1,4 +1,3 @@
-import pytest
 from app.chunking.chunker import Chunker
 from app.models import DocType, DocumentInput, Provenance
 from app.security.redactor import redact_secrets

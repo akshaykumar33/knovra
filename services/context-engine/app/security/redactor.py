@@ -6,7 +6,6 @@ replacing them with safe redaction markers before chunking and embedding.
 """
 
 import re
-from typing import Tuple
 
 SECRET_PATTERNS = [
     # AWS access key ID
@@ -26,7 +25,7 @@ SECRET_PATTERNS = [
 ]
 
 
-def redact_secrets(text: str) -> Tuple[str, int]:
+def redact_secrets(text: str) -> tuple[str, int]:
     """Scans text and replaces any detected secrets with redaction markers.
 
     Returns:

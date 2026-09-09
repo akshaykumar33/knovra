@@ -4,7 +4,8 @@ Defines document inputs, chunk entities, search parameters, and provenance invar
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -21,12 +22,12 @@ class DocType(str, Enum):
 
 class Provenance(BaseModel):
     file_path: str = Field(..., description="Relative or repository file path")
-    byte_start: Optional[int] = Field(None, description="Starting byte offset in source file")
-    byte_end: Optional[int] = Field(None, description="Ending byte offset in source file")
-    line_start: Optional[int] = Field(None, description="Starting line number (1-indexed)")
-    line_end: Optional[int] = Field(None, description="Ending line number (1-indexed)")
+    byte_start: int | None = Field(None, description="Starting byte offset in source file")
+    byte_end: int | None = Field(None, description="Ending byte offset in source file")
+    line_start: int | None = Field(None, description="Starting line number (1-indexed)")
+    line_end: int | None = Field(None, description="Ending line number (1-indexed)")
     content_hash: str = Field(..., description="SHA-256 hash of original source content")
-    repo_name: Optional[str] = Field("knovra", description="Repository name")
+    repo_name: str | None = Field("knovra", description="Repository name")
 
 
 class DocumentInput(BaseModel):
@@ -37,7 +38,7 @@ class DocumentInput(BaseModel):
     title: str = Field(..., description="Title or summary label")
     content: str = Field(..., description="Raw text or markdown content")
     provenance: Provenance = Field(..., description="Mandatory provenance information")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary additional metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary additional metadata")
 
 
 class Chunk(BaseModel):
@@ -51,16 +52,16 @@ class Chunk(BaseModel):
     chunk_index: int = Field(..., description="0-indexed position in parent document")
     total_chunks: int = Field(..., description="Total chunks in parent document")
     provenance: Provenance = Field(..., description="Source provenance with byte/line offsets")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata dictionary")
-    embedding: Optional[List[float]] = Field(None, description="Vector embedding representation")
-    model_name: Optional[str] = Field(None, description="Name and version of embedding model used")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadata dictionary")
+    embedding: list[float] | None = Field(None, description="Vector embedding representation")
+    model_name: str | None = Field(None, description="Name and version of embedding model used")
 
 
 class SearchQuery(BaseModel):
     query: str = Field(..., min_length=1, description="Natural-language search query")
-    project_id: Optional[str] = Field(None, description="Filter by project ID")
-    repository_id: Optional[str] = Field(None, description="Filter by repository ID")
-    doc_types: Optional[List[DocType]] = Field(None, description="Filter by specific document types")
+    project_id: str | None = Field(None, description="Filter by project ID")
+    repository_id: str | None = Field(None, description="Filter by repository ID")
+    doc_types: list[DocType] | None = Field(None, description="Filter by specific document types")
     top_k: int = Field(10, ge=1, le=100, description="Maximum number of results to return")
     min_score: float = Field(0.0, ge=0.0, le=1.0, description="Minimum cosine similarity threshold")
 
@@ -73,19 +74,19 @@ class SearchResult(BaseModel):
     title: str
     content: str
     provenance: Provenance
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    model_name: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    model_name: str | None = None
 
 
 class IndexBatchRequest(BaseModel):
-    documents: List[DocumentInput] = Field(..., min_length=1, description="List of documents to chunk and index")
+    documents: list[DocumentInput] = Field(..., min_length=1, description="List of documents to chunk and index")
     reembed: bool = Field(False, description="Whether to re-embed if document already exists")
 
 
 class IndexBatchResponse(BaseModel):
     indexed_documents: int
     indexed_chunks: int
-    doc_types: Dict[str, int]
+    doc_types: dict[str, int]
     model_name: str
     elapsed_ms: float
 
@@ -93,7 +94,7 @@ class IndexBatchResponse(BaseModel):
 class SemanticStats(BaseModel):
     total_documents: int
     total_chunks: int
-    by_doc_type: Dict[str, int]
+    by_doc_type: dict[str, int]
     embedding_model: str
     vector_dimension: int
     storage_backend: str

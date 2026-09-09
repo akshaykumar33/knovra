@@ -1,5 +1,7 @@
 import math
+
 import pytest
+
 from app.embeddings.adapter import DeterministicLocalEmbeddingProvider
 
 

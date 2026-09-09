@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+# Knovra Git Pre-Commit Hook: Zero-Defect Intervention Gate
+# Enforces: Check all errors and issues if any, fix them, and then proceed.
+
+export MSYS_NO_PATHCONV=1
+
+echo "🔍 [Knovra Git Intervention] Running pre-commit quality gate..."
+
+# Resolve repository root directory across POSIX and Windows Git Bash
+REPO_ROOT=$(pwd -W 2>/dev/null || pwd)
+
+# Check if Docker is available for hermetic verification
+if command -v docker >/dev/null 2>&1; then
+    # 1. Verify Go runtime if Go files changed
+    if git diff --cached --name-only | grep -E '^services/runtime/.*\.go$' >/dev/null 2>&1; then
+        echo "  -> Checking Go runtime (go vet & go test)..."
+        docker run --rm -v "${REPO_ROOT}/services/runtime:/app" -w /app golang:1.22-alpine sh -c "go vet ./... && go test ./..."
+
+        if [ $? -ne 0 ]; then
+            echo "❌ [Knovra Git Intervention] Go runtime check failed! Fix all Go errors and issues before committing."
+            exit 1
+        fi
+    fi
+
+    # 2. Verify Python context-engine if Python files changed
+    if git diff --cached --name-only | grep -E '^services/context-engine/.*\.py$' >/dev/null 2>&1; then
+        echo "  -> Checking Python context-engine (ruff & pytest)..."
+        docker run --rm -v "${REPO_ROOT}/services/context-engine:/app" -w /app knovra-context-engine:test sh -c "ruff check . && pytest"
+        if [ $? -ne 0 ]; then
+            echo "❌ [Knovra Git Intervention] Python context-engine check failed! Fix all Python errors and issues before committing."
+            exit 1
+        fi
+    fi
+
+    # 3. Verify Rust code-indexer if Rust files changed
+    if git diff --cached --name-only | grep -E '^services/code-indexer/.*\.rs$' >/dev/null 2>&1; then
+        echo "  -> Checking Rust code-indexer (cargo check & cargo test)..."
+        docker run --rm -v "${REPO_ROOT}/services/code-indexer:/app" -w /app rust:1.78-alpine sh -c "cargo check && cargo test"
+
+        if [ $? -ne 0 ]; then
+            echo "❌ [Knovra Git Intervention] Rust code-indexer check failed! Fix all Rust errors and issues before committing."
+            exit 1
+        fi
+    fi
+fi
+
+echo "✅ [Knovra Git Intervention] All pre-commit checks passed cleanly. Proceeding with commit."
+exit 0

@@ -11,7 +11,7 @@ import abc
 import hashlib
 import math
 import re
-from typing import List, Optional
+
 import httpx
 
 
@@ -22,20 +22,17 @@ class BaseEmbeddingProvider(abc.ABC):
     @abc.abstractmethod
     def model_name(self) -> str:
         """Returns the canonical model name and version."""
-        pass
 
     @property
     @abc.abstractmethod
     def dimension(self) -> int:
         """Returns vector embedding dimension."""
-        pass
 
     @abc.abstractmethod
-    async def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Embeds a batch of texts into dense vectors."""
-        pass
 
-    async def embed_query(self, query: str) -> List[float]:
+    async def embed_query(self, query: str) -> list[float]:
         """Embeds a single search query string."""
         results = await self.embed_texts([query])
         return results[0]
@@ -61,13 +58,13 @@ class DeterministicLocalEmbeddingProvider(BaseEmbeddingProvider):
     def dimension(self) -> int:
         return self._dim
 
-    async def embed_texts(self, texts: List[str]) -> List[List[float]]:
-        embeddings: List[List[float]] = []
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        embeddings: list[list[float]] = []
         for text in texts:
             embeddings.append(self._compute_vector(text))
         return embeddings
 
-    def _compute_vector(self, text: str) -> List[float]:
+    def _compute_vector(self, text: str) -> list[float]:
         vec = [0.0] * self._dim
         if not text:
             return vec
@@ -117,7 +114,7 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
     def dimension(self) -> int:
         return self._dim
 
-    async def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         url = "https://api.openai.com/v1/embeddings"
         headers = {
             "Authorization": f"Bearer {self._api_key}",
@@ -150,9 +147,9 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
     def dimension(self) -> int:
         return self._dim
 
-    async def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         url = f"{self._base_url}/api/embeddings"
-        embeddings: List[List[float]] = []
+        embeddings: list[list[float]] = []
         async with httpx.AsyncClient(timeout=30.0) as client:
             for text in texts:
                 resp = await client.post(url, json={"model": self._model, "prompt": text})
@@ -164,8 +161,8 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
 
 def get_embedding_provider(
     provider_type: str = "local",
-    api_key: Optional[str] = None,
-    model_name: Optional[str] = None,
+    api_key: str | None = None,
+    model_name: str | None = None,
     dimension: int = 384,
 ) -> BaseEmbeddingProvider:
     """Factory helper to instantiate configured embedding provider."""

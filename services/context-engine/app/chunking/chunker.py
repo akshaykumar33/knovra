@@ -6,9 +6,8 @@ for natural-language docs, markdown files, and code symbol summaries.
 
 import hashlib
 import re
-from typing import List
 
-from app.models import Chunk, DocType, DocumentInput, Provenance
+from app.models import Chunk, DocumentInput, Provenance
 from app.security.redactor import redact_secrets
 
 
@@ -19,7 +18,7 @@ class Chunker:
         self.max_chunk_chars = max_chunk_chars
         self.overlap_chars = overlap_chars
 
-    def chunk_document(self, doc: DocumentInput) -> List[Chunk]:
+    def chunk_document(self, doc: DocumentInput) -> list[Chunk]:
         """Splits a DocumentInput into one or more Chunks with provenance."""
         # Enforce Invariant #6: Zero secret leakage before chunking
         sanitized_content, _ = redact_secrets(doc.content)
@@ -63,7 +62,7 @@ class Chunker:
         # Multi-chunk splitting
         raw_chunks = self._split_text(sanitized_content)
         total_chunks = len(raw_chunks)
-        chunks: List[Chunk] = []
+        chunks: list[Chunk] = []
 
         current_byte = doc.provenance.byte_start or 0
         current_line = doc.provenance.line_start or 1
@@ -117,11 +116,11 @@ class Chunker:
 
         return chunks
 
-    def _split_text(self, text: str) -> List[str]:
+    def _split_text(self, text: str) -> list[str]:
         """Splits text by markdown sections, paragraphs, or sliding window."""
         # Try splitting by markdown headings or double newlines first
         paragraphs = re.split(r"(\n#{1,3}\s+[^\n]+\n|\n\n+)", text)
-        pieces: List[str] = []
+        pieces: list[str] = []
         buf = ""
 
         for part in paragraphs:
@@ -145,9 +144,9 @@ class Chunker:
 
         return pieces if pieces else [text]
 
-    def _sliding_window_split(self, text: str) -> List[str]:
+    def _sliding_window_split(self, text: str) -> list[str]:
         """Sliding window fallback for continuous text without headers/paragraphs."""
-        splits: List[str] = []
+        splits: list[str] = []
         start = 0
         text_len = len(text)
 

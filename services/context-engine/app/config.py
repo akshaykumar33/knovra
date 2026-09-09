@@ -1,4 +1,4 @@
-from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     embedding_provider: str = "local"  # "local", "openai", "ollama"
     embedding_model: str = "knovra-deterministic-dense-v1"
     embedding_dimension: int = 384
-    openai_api_key: Optional[str] = None
+    openai_api_key: str | None = None
     ollama_base_url: str = "http://localhost:11434"
 
     # Chunking Configuration

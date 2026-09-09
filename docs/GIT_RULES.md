@@ -140,18 +140,58 @@ State "None" or explicitly document:
 
 ---
 
-## 5. Pull Request & Code Review Standards
+## 5. Mandatory Git Intervention: Zero-Defect Quality Gate ("Check All Errors & Fix Before Proceeding")
+
+> [!CAUTION]
+> **NON-NEGOTIABLE RULE**: Every commit, pull request, and phase transition MUST pass through the **Zero-Defect Intervention Gate**.
+> If ANY compiler error, type check failure, linter warning, test breakage, or unhandled defect exists in modified or affected subsystems, you **MUST STOP IMMEDIATELY**, diagnose and fix the root cause, re-verify until 100% green, and **ONLY THEN** proceed.
+
+### The Intervention Protocol
+
+1. **Stop & Inspect Before Committing**:
+   - Never commit code with failing tests, compilation errors, or unresolved linter warnings.
+   - Never use `--no-verify` or bypass flags to escape failing checks.
+   - Never defer a broken build with "TODO: fix later" commits.
+
+2. **Mandatory Multi-Language Quality Verification**:
+   Before staging and committing, run the verification matrix for all touched subsystems:
+
+   | Subsystem / Language | Check / Lint Command | Test Command | Required Outcome |
+   |---|---|---|---|
+   | **Rust (`code-indexer`)** | `cargo check --workspace` | `cargo test --workspace` | 0 errors, 0 test failures |
+   | **Go (`runtime`)** | `go vet ./...` | `go test -v ./...` | Clean exit code 0, all tests pass |
+   | **Python (`context-engine`)** | `ruff check .` | `pytest -v` | All checks passed, 100% green tests |
+   | **TypeScript (`apps/*`, `packages/*`)** | `pnpm typecheck` / `pnpm lint` | `pnpm test` | 0 type errors, 0 failures |
+
+3. **Immediate Remediation Workflow**:
+   If an error or issue is detected during verification:
+   - **Step A (Halt)**: Cease new feature development immediately.
+   - **Step B (Diagnose)**: Identify the exact file, line, and root cause (syntax, type mismatch, contract divergence, unhandled edge case).
+   - **Step C (Fix)**: Implement the minimal, robust, and clean fix preserving all architectural invariants.
+   - **Step D (Re-Verify)**: Re-run the full subsystem test suite to guarantee zero regressions.
+   - **Step E (Advance)**: Only when all checks exit with code 0 may the commit be crafted and pushed.
+
+4. **Automated Git Hook Enforcement**:
+   A repository pre-commit hook is provided at `.githooks/pre-commit` to prevent accidental commits when errors exist. Enable via:
+   ```bash
+   git config core.hooksPath .githooks
+   ```
+
+---
+
+## 6. Pull Request & Code Review Standards
 
 Every Pull Request must:
 1. Target `develop` (never merge directly into `main` except during milestone release tagging).
 2. Have a clear descriptive title matching conventional commit format.
 3. Include the Phase Acceptance checklist from `quality/PHASE_ACCEPTANCE_PROMPT.md`.
 4. Pass all automated CI jobs (`.github/workflows/ci.yml`).
-5. Maintain a clean, linear git history (prefer rebase and squash or semi-linear merge).
+5. Pass the Zero-Defect Quality Gate with zero pending errors or warnings.
+6. Maintain a clean, linear git history (prefer rebase and squash or semi-linear merge).
 
 ---
 
-## 6. Milestone Tagging & Release Conventions
+## 7. Milestone Tagging & Release Conventions
 
 Releases are tagged on `main` following Semantic Versioning (`vMAJOR.MINOR.PATCH`):
 - `v0.0.0`: Milestone V0 — Understand Code (Phases 01 - 04)
@@ -165,3 +205,4 @@ All tags must be annotated with a milestone release summary:
 ```bash
 git tag -a v0.0.0 -m "Release v0.0.0: Milestone V0 — Understand Code Complete"
 ```
+

@@ -10,15 +10,23 @@ Implements:
 import abc
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 import asyncpg
 
-from app.models import Chunk, DocType, Provenance, SearchQuery, SearchResult, SemanticStats
+from app.models import (
+    Chunk,
+    DocType,
+    Provenance,
+    SearchQuery,
+    SearchResult,
+    SemanticStats,
+)
 
 logger = logging.getLogger("knovra.vector-store")
 
 
-def cosine_similarity(v1: List[float], v2: List[float]) -> float:
+def cosine_similarity(v1: list[float], v2: list[float]) -> float:
     """Calculates cosine similarity between two unit-normalized vectors."""
     if len(v1) != len(v2) or not v1:
         return 0.0
@@ -31,11 +39,11 @@ class BaseVectorStore(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def store_chunks(self, chunks: List[Chunk]) -> int:
+    async def store_chunks(self, chunks: list[Chunk]) -> int:
         pass
 
     @abc.abstractmethod
-    async def search(self, query_vector: List[float], query: SearchQuery) -> List[SearchResult]:
+    async def search(self, query_vector: list[float], query: SearchQuery) -> list[SearchResult]:
         pass
 
     @abc.abstractmethod
@@ -55,22 +63,22 @@ class InMemoryVectorStore(BaseVectorStore):
     """Fast in-memory vector store with cosine distance ranking."""
 
     def __init__(self, model_name: str = "knovra-deterministic-dense-v1", dimension: int = 384):
-        self._chunks: Dict[str, Chunk] = {}
+        self._chunks: dict[str, Chunk] = {}
         self._model_name = model_name
         self._dim = dimension
 
     async def initialize(self) -> None:
         logger.info("Initialized InMemoryVectorStore (dimension=%d)", self._dim)
 
-    async def store_chunks(self, chunks: List[Chunk]) -> int:
+    async def store_chunks(self, chunks: list[Chunk]) -> int:
         count = 0
         for chunk in chunks:
             self._chunks[chunk.chunk_id] = chunk
             count += 1
         return count
 
-    async def search(self, query_vector: List[float], query: SearchQuery) -> List[SearchResult]:
-        matches: List[SearchResult] = []
+    async def search(self, query_vector: list[float], query: SearchQuery) -> list[SearchResult]:
+        matches: list[SearchResult] = []
         target_types = set(query.doc_types) if query.doc_types else None
 
         for chunk in self._chunks.values():
@@ -112,8 +120,8 @@ class InMemoryVectorStore(BaseVectorStore):
         return len(to_delete)
 
     async def get_stats(self) -> SemanticStats:
-        docs = set(c.document_id for c in self._chunks.values())
-        by_type: Dict[str, int] = {}
+        docs = {c.document_id for c in self._chunks.values()}
+        by_type: dict[str, int] = {}
         for c in self._chunks.values():
             by_type[c.doc_type.value] = by_type.get(c.doc_type.value, 0) + 1
 
@@ -150,7 +158,7 @@ class PgVectorStore(BaseVectorStore):
         self._database = database
         self._model_name = model_name
         self._dim = dimension
-        self._pool: Optional[asyncpg.Pool] = None
+        self._pool: asyncpg.Pool | None = None
 
     async def initialize(self) -> None:
         self._pool = await asyncpg.create_pool(
@@ -198,13 +206,12 @@ class PgVectorStore(BaseVectorStore):
             await conn.execute(schema_ddl)
         logger.info("Connected to PostgreSQL + pgvector at %s:%d/%s", self._host, self._port, self._database)
 
-    async def store_chunks(self, chunks: List[Chunk]) -> int:
+    async def store_chunks(self, chunks: list[Chunk]) -> int:
         if not self._pool or not chunks:
             return 0
 
-        async with self._pool.acquire() as conn:
-            async with conn.transaction():
-                for c in chunks:
+        async with self._pool.acquire() as conn, conn.transaction():
+            for c in chunks:
                     vec_str = f"[{','.join(str(x) for x in c.embedding)}]" if c.embedding else None
                     query = """
                     INSERT INTO semantic_chunks (
@@ -255,13 +262,13 @@ class PgVectorStore(BaseVectorStore):
                     )
         return len(chunks)
 
-    async def search(self, query_vector: List[float], query: SearchQuery) -> List[SearchResult]:
+    async def search(self, query_vector: list[float], query: SearchQuery) -> list[SearchResult]:
         if not self._pool:
             return []
 
         vec_str = f"[{','.join(str(x) for x in query_vector)}]"
         where_clauses = ["1=1"]
-        params: List[Any] = [vec_str]
+        params: list[Any] = [vec_str]
         p_idx = 2
 
         if query.project_id:
@@ -295,7 +302,7 @@ class PgVectorStore(BaseVectorStore):
         """
         params.extend([query.min_score, query.top_k])
 
-        results: List[SearchResult] = []
+        results: list[SearchResult] = []
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(sql, *params)
             for row in rows:
@@ -397,7 +404,7 @@ class ResilientVectorStore(BaseVectorStore):
             await self._pg_store.initialize()
             self._active_store = self._pg_store
             logger.info("Using PostgreSQL + pgvector as active vector store")
-        except Exception as ex:
+        except Exception as ex:  # noqa: BLE001
             logger.warning(
                 "PostgreSQL pgvector unavailable (%s). Falling back to InMemoryVectorStore for local-first execution.",
                 ex,
@@ -405,10 +412,10 @@ class ResilientVectorStore(BaseVectorStore):
             await self._mem_store.initialize()
             self._active_store = self._mem_store
 
-    async def store_chunks(self, chunks: List[Chunk]) -> int:
+    async def store_chunks(self, chunks: list[Chunk]) -> int:
         return await self._active_store.store_chunks(chunks)
 
-    async def search(self, query_vector: List[float], query: SearchQuery) -> List[SearchResult]:
+    async def search(self, query_vector: list[float], query: SearchQuery) -> list[SearchResult]:
         return await self._active_store.search(query_vector, query)
 
     async def delete_document(self, document_id: str) -> int:

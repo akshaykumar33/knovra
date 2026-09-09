@@ -1,4 +1,5 @@
 import pytest
+
 from app.models import Chunk, DocType, Provenance, SearchQuery
 from app.storage.vector_store import InMemoryVectorStore
 

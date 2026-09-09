@@ -4,11 +4,12 @@ Phase 05 Deliverable: Semantic Memory with pgvector and resilient offline fallba
 Provides semantic retrieval, chunking, and provenance-tracked search for AI agents.
 """
 
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
 import logging
 import time
-from typing import Any, Dict, List
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from typing import Any
+
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
@@ -61,8 +62,9 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing Knovra Semantic Memory...")
     try:
         await vector_store.initialize()
-    except Exception as ex:
+    except Exception as ex:  # noqa: BLE001
         logger.error("Error during vector store initialization: %s", ex)
+
     yield
     logger.info("Shutting down Knovra Semantic Memory...")
     await vector_store.close()
@@ -82,7 +84,7 @@ class HealthResponse(BaseModel):
     version: str
     timestamp: str
     uptime_seconds: float
-    details: Dict[str, Any]
+    details: dict[str, Any]
 
 
 @app.get("/")
@@ -101,7 +103,7 @@ async def health():
         status="ok",
         service="knovra-context-engine",
         version="0.1.0",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         uptime_seconds=round(time.time() - start_time, 2),
         details={
             "environment": settings.knovra_env,
@@ -119,8 +121,8 @@ async def health():
 async def index_documents(request: IndexBatchRequest):
     """Chunks documents, computes dense vector embeddings, and stores them with provenance."""
     t0 = time.time()
-    all_chunks: List[Chunk] = []
-    doc_types: Dict[str, int] = {}
+    all_chunks: list[Chunk] = []
+    doc_types: dict[str, int] = {}
 
     for doc in request.documents:
         # If reembed is False, check and delete prior version if updating
@@ -167,7 +169,7 @@ async def index_documents(request: IndexBatchRequest):
     )
 
 
-@app.post("/semantic/search", response_model=List[SearchResult])
+@app.post("/semantic/search", response_model=list[SearchResult])
 async def search(query: SearchQuery):
     """Semantic vector search across project artifacts with provenance and filters."""
     query_vector = await embedding_provider.embed_query(query.query)

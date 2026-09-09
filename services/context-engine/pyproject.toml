@@ -24,3 +24,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.ruff.lint]
+ignore = ["EXE002"]
+
+
