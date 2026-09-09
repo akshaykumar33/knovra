@@ -1,0 +1,34 @@
+{
+  "name": "knovra-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Universal persistent project-intelligence layer for AI development agents",
+  "scripts": {
+    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "infra:status": "docker compose -f infra/docker/docker-compose.yml ps",
+    "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f",
+    "dev:web": "npm --prefix apps/web run dev",
+    "dev:api": "npm --prefix apps/api run start:dev",
+    "test:all": "npm run test:contracts && npm run test:web && npm run test:api",
+    "test:web": "npm --prefix apps/web run test",
+    "test:api": "npm --prefix apps/api run test",
+    "test:contracts": "npm --prefix packages/contracts run test",
+    "lint:all": "npm --prefix apps/web run lint && npm --prefix apps/api run lint",
+    "build:all": "npm --prefix packages/contracts run build && npm --prefix packages/config run build && npm --prefix apps/web run build && npm --prefix apps/api run build"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "keywords": [
+    "ai",
+    "agents",
+    "context-engine",
+    "code-intelligence",
+    "mcp",
+    "knowledge-graph"
+  ],
+  "author": "Knovra Team",
+  "license": "Apache-2.0"
+}

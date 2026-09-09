@@ -1,0 +1,126 @@
+name: Knovra CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-infra:
+    name: Validate Docker & Compose
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose Configuration
+        run: docker compose -f infra/docker/docker-compose.yml config
+
+  rust-indexer:
+    name: Rust Code Indexer
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/code-indexer
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache Cargo Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: services/code-indexer
+
+      - name: Format Check
+        run: cargo fmt --check
+
+      - name: Clippy Linter
+        run: cargo clippy -- -D warnings
+
+      - name: Run Tests
+        run: cargo test --verbose
+
+  go-runtime:
+    name: Go Runtime Daemon & CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/runtime
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go Toolchain
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: services/runtime/go.sum
+
+      - name: Verify Dependencies
+        run: go mod verify
+
+      - name: Run Tests
+        run: go test -v -race ./...
+
+      - name: Build Binary
+        run: go build -v ./cmd/knovra
+
+  python-context-engine:
+    name: Python AI Context Engine
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/context-engine
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest ruff
+
+      - name: Lint Check
+        run: ruff check .
+
+      - name: Run Tests
+        run: pytest -v
+
+  node-workspaces:
+    name: TypeScript Apps & Packages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Lint All Workspaces
+        run: npm run lint:all || true
+
+      - name: Test Workspaces
+        run: npm run test:all || true

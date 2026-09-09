@@ -1,0 +1,40 @@
+project:
+  name: knovra
+  mode: local
+
+indexing:
+  exclude:
+    - node_modules/**
+    - .next/**
+    - dist/**
+    - build/**
+    - coverage/**
+  languages:
+    - typescript
+    - javascript
+    - python
+    - go
+    - rust
+
+context:
+  max_token_budget: 12000
+  include_recent_changes: true
+  include_decisions: true
+  include_rules: true
+
+rules:
+  - id: architecture-boundaries
+    severity: high
+    instruction: >
+      Respect Knovra service ownership and do not bypass service boundaries.
+
+  - id: no-secret-context
+    severity: critical
+    instruction: >
+      Never store or send secrets, credentials or private keys in model context,
+      embeddings, logs or graph properties.
+
+  - id: incremental-indexing
+    severity: high
+    instruction: >
+      Do not perform a full repository re-index when only a subset changed.
