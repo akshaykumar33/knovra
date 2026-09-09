@@ -38,6 +38,13 @@ from app.decision import (
     RuleSeverity,
 )
 from app.embeddings.adapter import BaseEmbeddingProvider, get_embedding_provider
+from app.events import (
+    AgentEvent,
+    EventProcessor,
+    EventType,
+    PublishEventResponse,
+    ResilientEventBus,
+)
 from app.git_memory import (
     GitCommit,
     GitHistoryPayload,
@@ -108,6 +115,15 @@ context_planner: ContextPlanner = ContextPlanner(
     conversation_store=conversation_store,
     git_store=git_store,
 )
+event_processor: EventProcessor = EventProcessor(
+    decision_store=decision_store,
+    conversation_store=conversation_store,
+    vector_store=vector_store,
+)
+nats_server_url = getattr(settings, "nats_url", "nats://localhost:4222")
+event_bus: ResilientEventBus = ResilientEventBus(nats_url=nats_server_url)
+event_bus.subscribe(event_processor.process_event)
+
 mcp_gateway: McpGatewayHandler = McpGatewayHandler(
     vector_store=vector_store,
     embedding_provider=embedding_provider,
@@ -115,6 +131,7 @@ mcp_gateway: McpGatewayHandler = McpGatewayHandler(
     conversation_store=conversation_store,
     git_store=git_store,
     context_planner=context_planner,
+    event_bus=event_bus,
 )
 
 
@@ -127,8 +144,14 @@ async def lifespan(app: FastAPI):
     except Exception as ex:  # noqa: BLE001
         logger.error("Error during vector store initialization: %s", ex)
 
+    try:
+        await event_bus.start()
+    except Exception as ex:  # noqa: BLE001
+        logger.error("Error starting event bus: %s", ex)
+
     yield
-    logger.info("Shutting down Knovra Semantic Memory...")
+    logger.info("Shutting down Knovra Semantic Memory and Event Bus...")
+    await event_bus.stop()
     await vector_store.close()
 
 
@@ -572,6 +595,66 @@ async def mcp_sse_endpoint():
         yield "event: endpoint\ndata: /mcp/rpc\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# -----------------------------------------------------------------------------
+# Agent Event System Endpoints (Phase 10)
+# -----------------------------------------------------------------------------
+
+
+@app.post("/events/publish", response_model=PublishEventResponse)
+async def publish_agent_event(event: AgentEvent):
+    """Publishes a single AgentEvent into Knovra's real-time event pipeline."""
+    success, is_duplicate, _ = await event_processor.process_event(event)
+    await event_bus.publish(event)
+    return PublishEventResponse(
+        event_id=event.event_id,
+        status="acknowledged" if success else "failed",
+        idempotent_duplicate=is_duplicate,
+        processed_at=datetime.now(UTC).isoformat(),
+    )
+
+
+@app.post("/events/batch", response_model=list[PublishEventResponse])
+async def publish_agent_events_batch(events: list[AgentEvent]):
+    """Batch ingestion of multiple agent events."""
+    responses: list[PublishEventResponse] = []
+    for event in events:
+        success, is_duplicate, _ = await event_processor.process_event(event)
+        await event_bus.publish(event)
+        responses.append(
+            PublishEventResponse(
+                event_id=event.event_id,
+                status="acknowledged" if success else "failed",
+                idempotent_duplicate=is_duplicate,
+                processed_at=datetime.now(UTC).isoformat(),
+            )
+        )
+    return responses
+
+
+@app.get("/events/recent", response_model=list[AgentEvent])
+async def get_recent_agent_events(limit: int = 50, event_type: EventType | None = None):
+    """Retrieves recently processed agent events."""
+    return event_processor.get_recent_events(limit=limit, event_type=event_type)
+
+
+@app.get("/events/dead-letter")
+async def get_dead_letter_records(limit: int = 50):
+    """Inspects dead-letter queue records and failure diagnostics."""
+    return event_processor.dlq.list_records(limit=limit)
+
+
+@app.get("/events/file-activities")
+async def get_file_activities(limit: int = 50):
+    """Returns file activity touches tracked from agent activity."""
+    return event_processor.get_file_activities(limit=limit)
+
+
+@app.get("/events/test-results")
+async def get_test_results(limit: int = 50):
+    """Returns test execution records tracked from agent activity."""
+    return event_processor.get_test_results(limit=limit)
 
 
 if __name__ == "__main__":

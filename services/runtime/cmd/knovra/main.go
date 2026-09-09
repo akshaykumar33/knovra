@@ -16,6 +16,7 @@ import (
 	"knovra/runtime/internal/conversation"
 	"knovra/runtime/internal/daemon"
 	"knovra/runtime/internal/decision"
+	"knovra/runtime/internal/events"
 	"knovra/runtime/internal/git"
 	"knovra/runtime/internal/graph"
 	"knovra/runtime/internal/ingest"
@@ -246,6 +247,26 @@ func main() {
 	case "mcp":
 		runMCP()
 
+	case "event":
+		if len(os.Args) < 3 {
+			fmt.Println("Usage: knovra event <emit|list> [arguments]")
+			return
+		}
+		subcmd := os.Args[2]
+		switch subcmd {
+		case "emit":
+			if len(os.Args) < 4 {
+				fmt.Println("Usage: knovra event emit <event_type> [--source <src>] [--agent <id>] [--session <id>] [--project <id>] [--payload <json>]")
+				return
+			}
+			runEventEmit(os.Args[3], os.Args[4:])
+		case "list":
+			runEventList(os.Args[3:])
+		default:
+			fmt.Fprintf(os.Stderr, "Unknown event subcommand: %s (choose emit, list)\n", subcmd)
+			os.Exit(1)
+		}
+
 	case "daemon":
 		runDaemon()
 
@@ -296,6 +317,9 @@ func printUsage() {
 	fmt.Println("  pack \"<prompt>\"          Export prompt-ready Markdown bundle for AI agents")
 	fmt.Println("\nMCP Agent Gateway Commands (Phase 09):")
 	fmt.Println("  mcp                      Start Model Context Protocol (MCP) JSON-RPC 2.0 stdio server")
+	fmt.Println("\nAgent Event System Commands (Phase 10):")
+	fmt.Println("  event emit <type> [args] Emit an agent activity or lifecycle event into Knovra")
+	fmt.Println("  event list [--limit <n>] List recent agent activity events and learning timeline")
 	fmt.Println("\nDaemon & Gateway Commands:")
 	fmt.Println("  daemon                   Start background HTTP daemon and health probes")
 	fmt.Println("  version                  Print version information")
@@ -1545,3 +1569,145 @@ func runMCP() {
 		os.Exit(1)
 	}
 }
+
+func runEventEmit(eventTypeStr string, args []string) {
+	source := "knovra-cli"
+	agentID := "cli-agent"
+	sessionID := "cli-session"
+	projectID := "knovra"
+	payloadStr := "{}"
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--source", "-s":
+			if i+1 < len(args) {
+				source = args[i+1]
+				i++
+			}
+		case "--agent", "-a":
+			if i+1 < len(args) {
+				agentID = args[i+1]
+				i++
+			}
+		case "--session":
+			if i+1 < len(args) {
+				sessionID = args[i+1]
+				i++
+			}
+		case "--project", "-p":
+			if i+1 < len(args) {
+				projectID = args[i+1]
+				i++
+			}
+		case "--payload":
+			if i+1 < len(args) {
+				payloadStr = args[i+1]
+				i++
+			}
+		}
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(payloadStr), &payload); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: payload must be valid JSON: %v\n", err)
+		os.Exit(1)
+	}
+
+	event := events.NewAgentEvent(events.EventType(eventTypeStr), payload)
+	event.AgentID = agentID
+	event.SessionID = sessionID
+	event.ProjectID = projectID
+	if event.Metadata == nil {
+		event.Metadata = make(map[string]interface{})
+	}
+	event.Metadata["source"] = source
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := events.NewClient(engineURL)
+	resp, err := client.Publish(context.Background(), event)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error emitting event: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Println("  KNOVRA AGENT EVENT EMITTED")
+	fmt.Println("====================================================================================================")
+	fmt.Printf("• Event ID:             %s\n", resp.EventID)
+	fmt.Printf("• Event Type:           %s\n", event.EventType)
+	fmt.Printf("• Status:               %s\n", resp.Status)
+	fmt.Printf("• Idempotent Duplicate: %v\n", resp.IdempotentDuplicate)
+	fmt.Printf("• Processed At:         %s\n", resp.ProcessedAt)
+	fmt.Println("====================================================================================================")
+}
+
+func runEventList(args []string) {
+	limit := 20
+	eventType := ""
+	outputJSON := false
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--limit", "-n":
+			if i+1 < len(args) {
+				if l, err := strconv.Atoi(args[i+1]); err == nil {
+					limit = l
+					i++
+				}
+			}
+		case "--type", "-t":
+			if i+1 < len(args) {
+				eventType = args[i+1]
+				i++
+			}
+		case "--json":
+			outputJSON = true
+		}
+	}
+
+	engineURL := os.Getenv("KNOVRA_CONTEXT_ENGINE_URL")
+	if engineURL == "" {
+		engineURL = "http://localhost:8000"
+	}
+
+	client := events.NewClient(engineURL)
+	evts, err := client.GetRecent(context.Background(), limit, eventType)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error retrieving recent events: %v\n", err)
+		os.Exit(1)
+	}
+
+	if outputJSON {
+		data, err := json.MarshalIndent(evts, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error encoding events to JSON: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(data))
+		return
+	}
+
+	fmt.Println("====================================================================================================")
+	fmt.Printf("  RECENT AGENT ACTIVITY EVENTS (%d recorded)\n", len(evts))
+	fmt.Println("====================================================================================================")
+	if len(evts) == 0 {
+		fmt.Println("No recent agent events found.")
+		return
+	}
+
+	for _, e := range evts {
+		ts := e.Timestamp.Format("2006-01-02 15:04:05")
+		payloadBrief, _ := json.Marshal(e.Payload)
+		briefStr := string(payloadBrief)
+		if len(briefStr) > 50 {
+			briefStr = briefStr[:47] + "..."
+		}
+		fmt.Printf("[%s] %-18s | %-12s | %s\n", ts, e.EventType, e.EventID, briefStr)
+	}
+	fmt.Println("====================================================================================================")
+}
+

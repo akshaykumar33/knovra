@@ -13,6 +13,7 @@ from app.conversation import (
 )
 from app.decision import Decision, DecisionRuleStore, DecisionStatus
 from app.embeddings.adapter import BaseEmbeddingProvider
+from app.events import AgentEvent, EventBus, EventType
 from app.git_memory import GitMemoryStore
 from app.mcp.models import (
     ContentItem,
@@ -41,6 +42,7 @@ class McpGatewayHandler:
         conversation_store: ConversationStore,
         git_store: GitMemoryStore,
         context_planner: ContextPlanner,
+        event_bus: EventBus | None = None,
     ) -> None:
         self.vector_store = vector_store
         self.embedding_provider = embedding_provider
@@ -48,6 +50,7 @@ class McpGatewayHandler:
         self.conversation_store = conversation_store
         self.git_store = git_store
         self.context_planner = context_planner
+        self.event_bus = event_bus
         self.redactor = SecretRedactor()
 
     async def handle_request(self, req: JsonRpcRequest) -> JsonRpcResponse:
@@ -147,6 +150,43 @@ class McpGatewayHandler:
 
             # Scrub secrets before returning (Invariant #6)
             cleaned_text = self.redactor.redact_text(text)
+
+            # Auto-emit AgentEvent for continuous intelligence learning (Phase 10)
+            if self.event_bus:
+                try:
+                    if tool_name == "knovra.record_decision":
+                        await self.event_bus.publish(
+                            AgentEvent(
+                                event_type=EventType.DECISION_MADE,
+                                payload={
+                                    "id": args.get("id"),
+                                    "title": args.get("title"),
+                                    "decision": args.get("decision"),
+                                    "reason": args.get("context"),
+                                    "status": args.get("status", "accepted"),
+                                    "supersedes": args.get("supersedes"),
+                                },
+                            )
+                        )
+                    elif tool_name == "knovra.remember":
+                        cat = str(args.get("category", "insight")).lower()
+                        evt = EventType.SOLUTION_APPLIED if cat == "solution" else EventType.ERROR_OBSERVED if cat == "error" else EventType.PROMPT_RECEIVED
+                        await self.event_bus.publish(
+                            AgentEvent(
+                                event_type=evt,
+                                payload={"text": args.get("text"), "category": cat},
+                            )
+                        )
+                    elif tool_name == "knovra.context":
+                        await self.event_bus.publish(
+                            AgentEvent(
+                                event_type=EventType.TASK_STARTED,
+                                payload={"prompt": args.get("prompt"), "budget": args.get("budget", 4000)},
+                            )
+                        )
+                except Exception as bus_ex:  # noqa: BLE001
+                    logger.warning("Failed to emit agent event from tool %s: %s", tool_name, bus_ex)
+
             return ToolCallResult(
                 content=[ContentItem(text=cleaned_text)],
                 isError=False,
