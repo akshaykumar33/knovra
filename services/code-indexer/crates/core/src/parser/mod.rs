@@ -14,16 +14,44 @@ pub fn parse_file(file_path: &str, content: &str, language: &str, content_hash: 
 
     match language {
         "typescript" | "javascript" => {
-            typescript::parse_typescript(file_path, content, &mut symbols, &mut imports, &mut exports, &mut calls);
+            typescript::parse_typescript(
+                file_path,
+                content,
+                &mut symbols,
+                &mut imports,
+                &mut exports,
+                &mut calls,
+            );
         }
         "python" => {
-            python::parse_python(file_path, content, &mut symbols, &mut imports, &mut exports, &mut calls);
+            python::parse_python(
+                file_path,
+                content,
+                &mut symbols,
+                &mut imports,
+                &mut exports,
+                &mut calls,
+            );
         }
         "go" => {
-            go::parse_go(file_path, content, &mut symbols, &mut imports, &mut exports, &mut calls);
+            go::parse_go(
+                file_path,
+                content,
+                &mut symbols,
+                &mut imports,
+                &mut exports,
+                &mut calls,
+            );
         }
         "rust" => {
-            rust::parse_rust(file_path, content, &mut symbols, &mut imports, &mut exports, &mut calls);
+            rust::parse_rust(
+                file_path,
+                content,
+                &mut symbols,
+                &mut imports,
+                &mut exports,
+                &mut calls,
+            );
         }
         _ => {}
     }

@@ -77,7 +77,9 @@ fn print_usage() {
     println!("\nUsage:");
     println!("  knovra-indexer <command> [arguments]");
     println!("\nCommands:");
-    println!("  scan [path]         Index repository code AST, symbols and save .knovra/code_index.json");
+    println!(
+        "  scan [path]         Index repository code AST, symbols and save .knovra/code_index.json"
+    );
     println!("  incremental [path] [f1,f2] Update only specified files in .knovra/code_index.json");
     println!("  impact <target>     Perform reverse dependency & caller impact lookup for file or symbol");
     println!("  symbols <file>      List all extracted symbols in a specific source file");
@@ -90,7 +92,10 @@ fn print_usage() {
 
 fn run_scan(target: &str) {
     let root = Path::new(target);
-    println!("Scanning repository for code symbols: {}...", root.display());
+    println!(
+        "Scanning repository for code symbols: {}...",
+        root.display()
+    );
 
     let start = Instant::now();
     let index = index_repository(root);
@@ -143,7 +148,7 @@ fn run_symbols(file_path: &str) {
 
     println!("\nSymbols in {file_path} (Language: {lang}):");
     println!("{:-<70}", "");
-    println!("{:<24} {:<12} {:<10} {}", "NAME", "KIND", "LINES", "SIGNATURE");
+    println!("{:<24} {:<12} {:<10} SIGNATURE", "NAME", "KIND", "LINES");
     println!("{:-<70}", "");
 
     for s in &file_index.symbols {
@@ -153,7 +158,13 @@ fn run_symbols(file_path: &str) {
         } else {
             s.signature.clone()
         };
-        println!("{:<24} {:<12} {:<10} {}", s.name, s.kind.as_str(), line_range, sig);
+        println!(
+            "{:<24} {:<12} {:<10} {}",
+            s.name,
+            s.kind.as_str(),
+            line_range,
+            sig
+        );
     }
     println!("{:-<70}\n", "");
 }
@@ -188,11 +199,17 @@ fn run_query(symbol_name: &str) {
 
 fn run_graph(target: &str) {
     let index = index_repository(Path::new(target));
-    println!("\nDiscovered Dependency Graph (Total Edges: {}):", index.dependency_edges.len());
+    println!(
+        "\nDiscovered Dependency Graph (Total Edges: {}):",
+        index.dependency_edges.len()
+    );
     println!("{:-<70}", "");
 
     for edge in &index.dependency_edges {
-        println!("  {:<35} --[{}]--> {}", edge.from_file, edge.edge_type, edge.to_file_or_module);
+        println!(
+            "  {:<35} --[{}]--> {}",
+            edge.from_file, edge.edge_type, edge.to_file_or_module
+        );
     }
     println!("{:-<70}\n", "");
 }
@@ -219,14 +236,23 @@ fn run_incremental(target: &str, changed_files: &[&str]) {
     println!("• Added Files:            {}", delta.added_files.len());
     println!("• Deleted Files:          {}", delta.deleted_files.len());
     println!("• Changed Symbols:        {}", delta.changed_symbols.len());
-    println!("• Total Symbols:          {} -> {}", delta.total_symbols_before, delta.total_symbols_after);
-    println!("• Invalidated Dependents: {}", delta.invalidated_dependencies.len());
+    println!(
+        "• Total Symbols:          {} -> {}",
+        delta.total_symbols_before, delta.total_symbols_after
+    );
+    println!(
+        "• Invalidated Dependents: {}",
+        delta.invalidated_dependencies.len()
+    );
     println!("• Latency:                {:.2?}", duration);
 }
 
 fn run_impact(target: &str, root_dir: &str) {
     let root = Path::new(root_dir);
-    println!("Analyzing impact for target: '{target}' in {}...", root.display());
+    println!(
+        "Analyzing impact for target: '{target}' in {}...",
+        root.display()
+    );
     let start = Instant::now();
     let index = index_repository(root);
 
@@ -238,18 +264,26 @@ fn run_impact(target: &str, root_dir: &str) {
     // 1. Direct callers & reverse dependencies
     for f in &index.files {
         let fpath = f.file_path.replace('\\', "/");
-        let is_test = fpath.ends_with("_test.go") || fpath.contains("test_") || fpath.ends_with("_test.rs") || fpath.contains("/tests/");
+        let is_test = fpath.ends_with("_test.go")
+            || fpath.contains("test_")
+            || fpath.ends_with("_test.rs")
+            || fpath.contains("/tests/");
 
         // Check if file calls the target symbol
         for c in &f.calls {
             if c.callee_name.eq_ignore_ascii_case(target) || c.callee_name.contains(target) {
-                direct_callers.push(format!("{} -> {} (line {})", f.file_path, c.caller_name, c.line));
+                direct_callers.push(format!(
+                    "{} -> {} (line {})",
+                    f.file_path, c.caller_name, c.line
+                ));
             }
         }
 
         // Check if file imports target
         for imp in &f.imports {
-            if imp.module_path.contains(&norm_target) || imp.imported_symbol.eq_ignore_ascii_case(target) {
+            if imp.module_path.contains(&norm_target)
+                || imp.imported_symbol.eq_ignore_ascii_case(target)
+            {
                 if is_test {
                     related_tests.push(f.file_path.clone());
                 } else {
@@ -264,7 +298,10 @@ fn run_impact(target: &str, root_dir: &str) {
         let to_norm = edge.to_file_or_module.replace('\\', "/");
         if to_norm.contains(&norm_target) && edge.from_file != norm_target {
             let from_norm = edge.from_file.replace('\\', "/");
-            let is_test = from_norm.ends_with("_test.go") || from_norm.contains("test_") || from_norm.ends_with("_test.rs") || from_norm.contains("/tests/");
+            let is_test = from_norm.ends_with("_test.go")
+                || from_norm.contains("test_")
+                || from_norm.ends_with("_test.rs")
+                || from_norm.contains("/tests/");
             if is_test {
                 if !related_tests.contains(&edge.from_file) {
                     related_tests.push(edge.from_file.clone());
@@ -276,10 +313,18 @@ fn run_impact(target: &str, root_dir: &str) {
     }
 
     // 3. Find direct unit test for target file
-    let base_name = Path::new(target).file_stem().and_then(|s| s.to_str()).unwrap_or(target);
+    let base_name = Path::new(target)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(target);
     for f in &index.files {
         let fpath = f.file_path.replace('\\', "/");
-        if (fpath.contains(base_name) && (fpath.ends_with("_test.go") || fpath.contains("test_") || fpath.ends_with("_test.rs"))) && !related_tests.contains(&f.file_path) {
+        if (fpath.contains(base_name)
+            && (fpath.ends_with("_test.go")
+                || fpath.contains("test_")
+                || fpath.ends_with("_test.rs")))
+            && !related_tests.contains(&f.file_path)
+        {
             related_tests.push(f.file_path.clone());
         }
     }
@@ -291,7 +336,10 @@ fn run_impact(target: &str, root_dir: &str) {
     println!("======================================================================");
     println!("Target:               {target}");
     println!("Analysis Duration:    {:.2?}", duration);
-    println!("\n[DIRECT IMPORTERS / DEPENDENTS] (Count: {})", direct_importers.len());
+    println!(
+        "\n[DIRECT IMPORTERS / DEPENDENTS] (Count: {})",
+        direct_importers.len()
+    );
     if direct_importers.is_empty() {
         println!("  None found.");
     } else {
@@ -309,7 +357,10 @@ fn run_impact(target: &str, root_dir: &str) {
         }
     }
 
-    println!("\n[RECOMMENDED TESTS TO RUN] (Count: {})", related_tests.len());
+    println!(
+        "\n[RECOMMENDED TESTS TO RUN] (Count: {})",
+        related_tests.len()
+    );
     if related_tests.is_empty() {
         println!("  None detected.");
     } else {
@@ -319,5 +370,3 @@ fn run_impact(target: &str, root_dir: &str) {
     }
     println!("======================================================================\n");
 }
-
-

@@ -15,7 +15,11 @@ pub fn parse_typescript(
         let line_num = idx + 1;
         let trimmed = line.trim();
 
-        if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
+        if trimmed.is_empty()
+            || trimmed.starts_with("//")
+            || trimmed.starts_with("/*")
+            || trimmed.starts_with('*')
+        {
             continue;
         }
 
@@ -32,7 +36,9 @@ pub fn parse_typescript(
         // 1. Imports
         if trimmed.starts_with("import ") {
             if let Some(from_idx) = trimmed.find("from ") {
-                let module_part = trimmed[from_idx + 5..].trim().trim_matches(|c| c == ';' || c == '\'' || c == '"');
+                let module_part = trimmed[from_idx + 5..]
+                    .trim()
+                    .trim_matches(|c| c == ';' || c == '\'' || c == '"');
                 let import_part = trimmed[7..from_idx].trim();
                 imports.push(ImportRecord {
                     source_file: file_path.to_string(),
@@ -45,12 +51,16 @@ pub fn parse_typescript(
         }
 
         // 2. Class detection
-        if trimmed.starts_with("class ") || trimmed.starts_with("export class ") || trimmed.starts_with("export default class ") {
+        if trimmed.starts_with("class ")
+            || trimmed.starts_with("export class ")
+            || trimmed.starts_with("export default class ")
+        {
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             let mut class_name = "";
             for (p_idx, p) in parts.iter().enumerate() {
                 if *p == "class" && p_idx + 1 < parts.len() {
-                    class_name = parts[p_idx + 1].trim_matches(|c| c == '{' || c == '(' || c == ':');
+                    class_name =
+                        parts[p_idx + 1].trim_matches(|c| c == '{' || c == '(' || c == ':');
                     break;
                 }
             }
@@ -90,7 +100,12 @@ pub fn parse_typescript(
             }
             if !iface_name.is_empty() {
                 symbols.push(Symbol {
-                    id: Symbol::generate_id(file_path, &SymbolKind::Interface, iface_name, line_num),
+                    id: Symbol::generate_id(
+                        file_path,
+                        &SymbolKind::Interface,
+                        iface_name,
+                        line_num,
+                    ),
                     name: iface_name.to_string(),
                     kind: SymbolKind::Interface,
                     file_path: file_path.to_string(),
@@ -136,14 +151,34 @@ pub fn parse_typescript(
         }
 
         // 5. Methods inside Class
-        if current_class.is_some() && trimmed.contains('(') && !trimmed.starts_with("if") && !trimmed.starts_with("for") && !trimmed.starts_with("while") && !trimmed.starts_with("return") && !trimmed.starts_with("switch") {
-            let clean = trimmed.trim_start_matches("async ").trim_start_matches("public ").trim_start_matches("private ").trim_start_matches("protected ").trim_start_matches("static ");
+        if current_class.is_some()
+            && trimmed.contains('(')
+            && !trimmed.starts_with("if")
+            && !trimmed.starts_with("for")
+            && !trimmed.starts_with("while")
+            && !trimmed.starts_with("return")
+            && !trimmed.starts_with("switch")
+        {
+            let clean = trimmed
+                .trim_start_matches("async ")
+                .trim_start_matches("public ")
+                .trim_start_matches("private ")
+                .trim_start_matches("protected ")
+                .trim_start_matches("static ");
             if let Some(paren_pos) = clean.find('(') {
                 let method_name = clean[..paren_pos].trim();
                 // Valid identifier check
-                if !method_name.is_empty() && method_name.chars().all(|c| c.is_alphanumeric() || c == '_') && method_name != "constructor" {
+                if !method_name.is_empty()
+                    && method_name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    && method_name != "constructor"
+                {
                     symbols.push(Symbol {
-                        id: Symbol::generate_id(file_path, &SymbolKind::Method, method_name, line_num),
+                        id: Symbol::generate_id(
+                            file_path,
+                            &SymbolKind::Method,
+                            method_name,
+                            line_num,
+                        ),
                         name: method_name.to_string(),
                         kind: SymbolKind::Method,
                         file_path: file_path.to_string(),
@@ -157,7 +192,9 @@ pub fn parse_typescript(
         }
 
         // 6. Standalone Functions & Arrow Functions
-        if trimmed.contains("function ") || (trimmed.contains(" = ") && (trimmed.contains("=>") || trimmed.contains("function"))) {
+        if trimmed.contains("function ")
+            || (trimmed.contains(" = ") && (trimmed.contains("=>") || trimmed.contains("function")))
+        {
             let mut fn_name = "";
             let is_fn = trimmed.contains("function ");
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
@@ -206,10 +243,21 @@ pub fn parse_typescript(
         // 7. Basic Call detection
         if let Some(paren_idx) = trimmed.find('(') {
             let before = trimmed[..paren_idx].trim();
-            if let Some(word) = before.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.').last() {
-                if !word.is_empty() && word != "if" && word != "for" && word != "while" && word != "switch" && word != "function" {
+            if let Some(word) = before
+                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
+                .next_back()
+            {
+                if !word.is_empty()
+                    && word != "if"
+                    && word != "for"
+                    && word != "while"
+                    && word != "switch"
+                    && word != "function"
+                {
                     calls.push(CallEdge {
-                        caller_name: current_class.clone().unwrap_or_else(|| "global".to_string()),
+                        caller_name: current_class
+                            .clone()
+                            .unwrap_or_else(|| "global".to_string()),
                         callee_name: word.to_string(),
                         line: line_num,
                     });

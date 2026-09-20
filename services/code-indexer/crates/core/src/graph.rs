@@ -1,7 +1,11 @@
 use crate::models::{DependencyEdge, FileIndex, ProjectIndex};
 use std::collections::HashMap;
 
-pub fn build_project_index(root_path: &str, files: Vec<FileIndex>, indexed_at_secs: u64) -> ProjectIndex {
+pub fn build_project_index(
+    root_path: &str,
+    files: Vec<FileIndex>,
+    indexed_at_secs: u64,
+) -> ProjectIndex {
     let mut dependency_edges = Vec::new();
     let mut total_symbols = 0;
 

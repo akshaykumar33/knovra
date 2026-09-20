@@ -90,7 +90,12 @@ pub struct ProjectIndex {
 }
 
 impl Symbol {
-    pub fn generate_id(file_path: &str, kind: &SymbolKind, name: &str, line_start: usize) -> String {
+    pub fn generate_id(
+        file_path: &str,
+        kind: &SymbolKind,
+        name: &str,
+        line_start: usize,
+    ) -> String {
         format!("sym::{file_path}::{line_start}::{}::{name}", kind.as_str())
     }
 }
@@ -135,4 +140,3 @@ pub struct IncrementalDelta {
     pub total_symbols_before: usize,
     pub total_symbols_after: usize,
 }
-

@@ -132,7 +132,7 @@ pub fn index_incremental(
             if let Some(lang) = scanner::detect_file_language(&full_path) {
                 if let Ok(content) = std::fs::read_to_string(&full_path) {
                     let hash = scanner::compute_sha256(content.as_bytes());
-                    let new_file_index = parser::parse_file(&norm_path, &content, &lang, &hash);
+                    let new_file_index = parser::parse_file(&norm_path, &content, lang, &hash);
 
                     if let Some(old_file_index) = old_files_map.get(&norm_path) {
                         delta.modified_files.push(norm_path.clone());
@@ -150,7 +150,9 @@ pub fn index_incremental(
 
                         for (name, new_sym) in &new_syms {
                             if let Some(old_sym) = old_syms.get(name) {
-                                if old_sym.signature != new_sym.signature || old_sym.line_start != new_sym.line_start {
+                                if old_sym.signature != new_sym.signature
+                                    || old_sym.line_start != new_sym.line_start
+                                {
                                     delta.changed_symbols.push(models::ChangedSymbol {
                                         symbol_id: new_sym.id.clone(),
                                         symbol_name: new_sym.name.clone(),
@@ -232,10 +234,10 @@ pub fn index_incremental(
         }
 
         for edge in &previous_index.dependency_edges {
-            if edge.to_file_or_module == norm_path || edge.to_file_or_module.contains(&norm_path) {
-                if edge.from_file != norm_path {
-                    invalidated_deps.insert(edge.from_file.clone());
-                }
+            if (edge.to_file_or_module == norm_path || edge.to_file_or_module.contains(&norm_path))
+                && edge.from_file != norm_path
+            {
+                invalidated_deps.insert(edge.from_file.clone());
             }
         }
     }
@@ -248,12 +250,12 @@ pub fn index_incremental(
         .unwrap_or_default()
         .as_secs();
 
-    let new_project_index = graph::build_project_index(&root.to_string_lossy(), updated_files, now_secs);
+    let new_project_index =
+        graph::build_project_index(&root.to_string_lossy(), updated_files, now_secs);
     delta.total_symbols_after = new_project_index.total_symbols;
 
     (new_project_index, delta)
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -266,7 +268,9 @@ mod tests {
         assert_eq!(health.status, ServiceStatus::Ok);
         assert_eq!(health.service, "knovra-code-indexer");
         assert!(health.supported_languages.contains(&"rust".to_string()));
-        assert!(health.supported_languages.contains(&"typescript".to_string()));
+        assert!(health
+            .supported_languages
+            .contains(&"typescript".to_string()));
     }
 
     #[test]
@@ -284,9 +288,18 @@ mod tests {
         "#;
         let index = parser::parse_file("src/auth.ts", ts_code, "typescript", "hash123");
         assert_eq!(index.language, "typescript");
-        assert!(index.symbols.iter().any(|s| s.name == "UserConfig" && s.kind == SymbolKind::Interface));
-        assert!(index.symbols.iter().any(|s| s.name == "AuthController" && s.kind == SymbolKind::Class));
-        assert!(index.symbols.iter().any(|s| s.name == "validateToken" && s.kind == SymbolKind::Method));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "UserConfig" && s.kind == SymbolKind::Interface));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "AuthController" && s.kind == SymbolKind::Class));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "validateToken" && s.kind == SymbolKind::Method));
         assert_eq!(index.imports.len(), 1);
     }
 
@@ -304,9 +317,18 @@ mod tests {
                 pass
         "#;
         let index = parser::parse_file("app/main.py", py_code, "python", "hash456");
-        assert!(index.symbols.iter().any(|s| s.name == "ContextService" && s.kind == SymbolKind::Class));
-        assert!(index.symbols.iter().any(|s| s.name == "get_context" && s.kind == SymbolKind::Method));
-        assert!(index.symbols.iter().any(|s| s.name == "run_server" && s.kind == SymbolKind::Function));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "ContextService" && s.kind == SymbolKind::Class));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "get_context" && s.kind == SymbolKind::Method));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "run_server" && s.kind == SymbolKind::Function));
         assert_eq!(index.imports.len(), 2);
     }
 
@@ -329,9 +351,18 @@ mod tests {
             func MainHelper() {}
         "#;
         let index = parser::parse_file("main.go", go_code, "go", "hash789");
-        assert!(index.symbols.iter().any(|s| s.name == "Server" && s.kind == SymbolKind::Struct));
-        assert!(index.symbols.iter().any(|s| s.name == "Start" && s.kind == SymbolKind::Method));
-        assert!(index.symbols.iter().any(|s| s.name == "MainHelper" && s.kind == SymbolKind::Function));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "Server" && s.kind == SymbolKind::Struct));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "Start" && s.kind == SymbolKind::Method));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "MainHelper" && s.kind == SymbolKind::Function));
     }
 
     #[test]
@@ -354,15 +385,30 @@ mod tests {
             }
         "#;
         let index = parser::parse_file("src/graph.rs", rs_code, "rust", "hash999");
-        assert!(index.symbols.iter().any(|s| s.name == "GraphEngine" && s.kind == SymbolKind::Struct));
-        assert!(index.symbols.iter().any(|s| s.name == "new" && s.kind == SymbolKind::Method));
-        assert!(index.symbols.iter().any(|s| s.name == "Traversal" && s.kind == SymbolKind::Trait));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "GraphEngine" && s.kind == SymbolKind::Struct));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "new" && s.kind == SymbolKind::Method));
+        assert!(index
+            .symbols
+            .iter()
+            .any(|s| s.name == "Traversal" && s.kind == SymbolKind::Trait));
         assert_eq!(index.imports.len(), 1);
     }
 
     #[test]
     fn test_incremental_indexing() {
-        let root = std::env::temp_dir().join(format!("knovra_test_inc_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let root = std::env::temp_dir().join(format!(
+            "knovra_test_inc_{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
         std::fs::create_dir_all(&root).unwrap();
 
         let file_a = root.join("service.py");
@@ -373,16 +419,22 @@ mod tests {
         assert_eq!(initial_index.files.len(), 1);
 
         // Modify file_a to add another function
-        std::fs::write(&file_a, "def calculate_total():\n    return 10\n\ndef format_currency():\n    pass\n").unwrap();
+        std::fs::write(
+            &file_a,
+            "def calculate_total():\n    return 10\n\ndef format_currency():\n    pass\n",
+        )
+        .unwrap();
 
         let (new_index, delta) = index_incremental(&root, &["service.py"], &initial_index);
         assert_eq!(new_index.total_symbols, 2);
         assert_eq!(delta.modified_files, vec!["service.py"]);
         assert_eq!(delta.changed_symbols.len(), 1);
         assert_eq!(delta.changed_symbols[0].symbol_name, "format_currency");
-        assert_eq!(delta.changed_symbols[0].change_kind, models::ChangeKind::Added);
+        assert_eq!(
+            delta.changed_symbols[0].change_kind,
+            models::ChangeKind::Added
+        );
 
         let _ = std::fs::remove_dir_all(&root);
     }
 }
-

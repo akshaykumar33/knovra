@@ -14,13 +14,20 @@ pub fn parse_rust(
         let line_num = idx + 1;
         let trimmed = line.trim();
 
-        if trimmed.is_empty() || trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') {
+        if trimmed.is_empty()
+            || trimmed.starts_with("//")
+            || trimmed.starts_with("/*")
+            || trimmed.starts_with('*')
+        {
             continue;
         }
 
         // 1. Imports (use ...)
         if trimmed.starts_with("use ") || trimmed.starts_with("pub use ") {
-            let use_part = trimmed.trim_start_matches("pub ").trim_start_matches("use ").trim_end_matches(';');
+            let use_part = trimmed
+                .trim_start_matches("pub ")
+                .trim_start_matches("use ")
+                .trim_end_matches(';');
             imports.push(ImportRecord {
                 source_file: file_path.to_string(),
                 imported_symbol: use_part.split("::").last().unwrap_or(use_part).to_string(),
@@ -36,9 +43,15 @@ pub fn parse_rust(
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             for (p_idx, p) in parts.iter().enumerate() {
                 if *p == "struct" && p_idx + 1 < parts.len() {
-                    let struct_name = parts[p_idx + 1].trim_matches(|c| c == '{' || c == '(' || c == ';' || c == '<');
+                    let struct_name = parts[p_idx + 1]
+                        .trim_matches(|c| c == '{' || c == '(' || c == ';' || c == '<');
                     symbols.push(Symbol {
-                        id: Symbol::generate_id(file_path, &SymbolKind::Struct, struct_name, line_num),
+                        id: Symbol::generate_id(
+                            file_path,
+                            &SymbolKind::Struct,
+                            struct_name,
+                            line_num,
+                        ),
                         name: struct_name.to_string(),
                         kind: SymbolKind::Struct,
                         file_path: file_path.to_string(),
@@ -98,7 +111,12 @@ pub fn parse_rust(
                 if *p == "trait" && p_idx + 1 < parts.len() {
                     let trait_name = parts[p_idx + 1].trim_matches(|c| c == '{' || c == '<');
                     symbols.push(Symbol {
-                        id: Symbol::generate_id(file_path, &SymbolKind::Trait, trait_name, line_num),
+                        id: Symbol::generate_id(
+                            file_path,
+                            &SymbolKind::Trait,
+                            trait_name,
+                            line_num,
+                        ),
                         name: trait_name.to_string(),
                         kind: SymbolKind::Trait,
                         file_path: file_path.to_string(),
@@ -136,7 +154,13 @@ pub fn parse_rust(
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             for (p_idx, p) in parts.iter().enumerate() {
                 if *p == "fn" && p_idx + 1 < parts.len() {
-                    let fn_name = parts[p_idx + 1].split('(').next().unwrap_or("").split('<').next().unwrap_or("");
+                    let fn_name = parts[p_idx + 1]
+                        .split('(')
+                        .next()
+                        .unwrap_or("")
+                        .split('<')
+                        .next()
+                        .unwrap_or("");
                     if !fn_name.is_empty() {
                         let kind = if current_impl.is_some() {
                             SymbolKind::Method
@@ -171,9 +195,19 @@ pub fn parse_rust(
         // 7. Calls
         if let Some(paren_idx) = trimmed.find('(') {
             let before = trimmed[..paren_idx].trim();
-            if let Some(word) = before.split(|c: char| !c.is_alphanumeric() && c != '_' && c != ':').last() {
+            if let Some(word) = before
+                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != ':')
+                .next_back()
+            {
                 let clean_word = word.trim_start_matches(':');
-                if !clean_word.is_empty() && clean_word != "if" && clean_word != "for" && clean_word != "match" && clean_word != "fn" && clean_word != "println" && clean_word != "assert" {
+                if !clean_word.is_empty()
+                    && clean_word != "if"
+                    && clean_word != "for"
+                    && clean_word != "match"
+                    && clean_word != "fn"
+                    && clean_word != "println"
+                    && clean_word != "assert"
+                {
                     calls.push(CallEdge {
                         caller_name: current_impl.clone().unwrap_or_else(|| "crate".to_string()),
                         callee_name: clean_word.to_string(),
