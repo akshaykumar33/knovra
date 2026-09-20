@@ -31,7 +31,7 @@ pub fn parse_go(
                 if !pkg.is_empty() {
                     imports.push(ImportRecord {
                         source_file: file_path.to_string(),
-                        imported_symbol: pkg.split('/').last().unwrap_or(pkg).to_string(),
+                        imported_symbol: pkg.split('/').next_back().unwrap_or(pkg).to_string(),
                         module_path: pkg.to_string(),
                         line: line_num,
                     });
@@ -39,11 +39,11 @@ pub fn parse_go(
             }
             continue;
         }
-        if trimmed.starts_with("import ") {
-            let pkg = trimmed[7..].trim().trim_matches('"');
+        if let Some(rest) = trimmed.strip_prefix("import ") {
+            let pkg = rest.trim().trim_matches('"');
             imports.push(ImportRecord {
                 source_file: file_path.to_string(),
-                imported_symbol: pkg.split('/').last().unwrap_or(pkg).to_string(),
+                imported_symbol: pkg.split('/').next_back().unwrap_or(pkg).to_string(),
                 module_path: pkg.to_string(),
                 line: line_num,
             });
@@ -73,7 +73,7 @@ pub fn parse_go(
                     parent_id: None,
                 });
 
-                if type_name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                if type_name.chars().next().is_some_and(|c| c.is_uppercase()) {
                     exports.push(ExportRecord {
                         source_file: file_path.to_string(),
                         symbol_name: type_name.to_string(),
@@ -85,8 +85,7 @@ pub fn parse_go(
         }
 
         // 3. Functions and methods
-        if trimmed.starts_with("func ") {
-            let rest = &trimmed[5..];
+        if let Some(rest) = trimmed.strip_prefix("func ") {
             if rest.starts_with('(') {
                 // Method with receiver: func (r *Server) Handle(...)
                 if let Some(close_paren) = rest.find(')') {
@@ -94,9 +93,18 @@ pub fn parse_go(
                     let fn_part = rest[close_paren + 1..].trim();
                     let fn_name = fn_part.split('(').next().unwrap_or("").trim();
                     if !fn_name.is_empty() {
-                        let parent = receiver.split_whitespace().last().unwrap_or("").trim_matches('*');
+                        let parent = receiver
+                            .split_whitespace()
+                            .last()
+                            .unwrap_or("")
+                            .trim_matches('*');
                         symbols.push(Symbol {
-                            id: Symbol::generate_id(file_path, &SymbolKind::Method, fn_name, line_num),
+                            id: Symbol::generate_id(
+                                file_path,
+                                &SymbolKind::Method,
+                                fn_name,
+                                line_num,
+                            ),
                             name: fn_name.to_string(),
                             kind: SymbolKind::Method,
                             file_path: file_path.to_string(),
@@ -106,7 +114,7 @@ pub fn parse_go(
                             parent_id: Some(parent.to_string()),
                         });
 
-                        if fn_name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                        if fn_name.chars().next().is_some_and(|c| c.is_uppercase()) {
                             exports.push(ExportRecord {
                                 source_file: file_path.to_string(),
                                 symbol_name: fn_name.to_string(),
@@ -120,7 +128,12 @@ pub fn parse_go(
                 let fn_name = rest.split('(').next().unwrap_or("").trim();
                 if !fn_name.is_empty() {
                     symbols.push(Symbol {
-                        id: Symbol::generate_id(file_path, &SymbolKind::Function, fn_name, line_num),
+                        id: Symbol::generate_id(
+                            file_path,
+                            &SymbolKind::Function,
+                            fn_name,
+                            line_num,
+                        ),
                         name: fn_name.to_string(),
                         kind: SymbolKind::Function,
                         file_path: file_path.to_string(),
@@ -130,7 +143,7 @@ pub fn parse_go(
                         parent_id: None,
                     });
 
-                    if fn_name.chars().next().map_or(false, |c| c.is_uppercase()) {
+                    if fn_name.chars().next().is_some_and(|c| c.is_uppercase()) {
                         exports.push(ExportRecord {
                             source_file: file_path.to_string(),
                             symbol_name: fn_name.to_string(),
@@ -144,8 +157,16 @@ pub fn parse_go(
         // 4. Calls
         if let Some(paren_idx) = trimmed.find('(') {
             let before = trimmed[..paren_idx].trim();
-            if let Some(word) = before.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.').last() {
-                if !word.is_empty() && word != "if" && word != "for" && word != "switch" && word != "func" {
+            if let Some(word) = before
+                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
+                .next_back()
+            {
+                if !word.is_empty()
+                    && word != "if"
+                    && word != "for"
+                    && word != "switch"
+                    && word != "func"
+                {
                     calls.push(CallEdge {
                         caller_name: "package".to_string(),
                         callee_name: word.to_string(),

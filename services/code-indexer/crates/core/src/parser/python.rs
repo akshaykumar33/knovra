@@ -22,7 +22,11 @@ pub fn parse_python(
         let indent = line.len() - line.trim_start().len();
 
         // If indent drops below or equal to class_indent, reset class context
-        if current_class.is_some() && indent <= class_indent && !trimmed.starts_with("def ") && !trimmed.starts_with("async def ") {
+        if current_class.is_some()
+            && indent <= class_indent
+            && !trimmed.starts_with("def ")
+            && !trimmed.starts_with("async def ")
+        {
             current_class = None;
         }
 
@@ -60,7 +64,12 @@ pub fn parse_python(
                     current_class = Some(class_name.to_string());
                     class_indent = indent;
                     symbols.push(Symbol {
-                        id: Symbol::generate_id(file_path, &SymbolKind::Class, class_name, line_num),
+                        id: Symbol::generate_id(
+                            file_path,
+                            &SymbolKind::Class,
+                            class_name,
+                            line_num,
+                        ),
                         name: class_name.to_string(),
                         kind: SymbolKind::Class,
                         file_path: file_path.to_string(),
@@ -81,8 +90,8 @@ pub fn parse_python(
 
         // 3. Functions and methods
         if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
-            let def_part = if trimmed.starts_with("async def ") {
-                &trimmed[10..]
+            let def_part = if let Some(rest) = trimmed.strip_prefix("async def ") {
+                rest
             } else {
                 &trimmed[4..]
             };
@@ -120,10 +129,21 @@ pub fn parse_python(
         // 4. Calls
         if let Some(paren_idx) = trimmed.find('(') {
             let before = trimmed[..paren_idx].trim();
-            if let Some(word) = before.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.').last() {
-                if !word.is_empty() && word != "if" && word != "while" && word != "for" && word != "def" && word != "class" {
+            if let Some(word) = before
+                .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
+                .next_back()
+            {
+                if !word.is_empty()
+                    && word != "if"
+                    && word != "while"
+                    && word != "for"
+                    && word != "def"
+                    && word != "class"
+                {
                     calls.push(CallEdge {
-                        caller_name: current_class.clone().unwrap_or_else(|| "module".to_string()),
+                        caller_name: current_class
+                            .clone()
+                            .unwrap_or_else(|| "module".to_string()),
                         callee_name: word.to_string(),
                         line: line_num,
                     });
