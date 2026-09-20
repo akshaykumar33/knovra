@@ -28,6 +28,37 @@ Example:
 [phases/03_CODE_INTELLIGENCE.md]
 ```
 
+## Product surface work (UI/UX + functionality)
+
+`prompts/07_UIUX_DELIVERY_PROMPT.md`
+
+Use this for anything a human sees or interacts with: `apps/web`, `apps/desktop`, docs surfaces,
+design system. It makes UI/UX **and** working functionality both mandatory, grants explicit
+authority to choose or replace libraries for the product surface, and defines the delivery
+protocol — branch, protect, commit, pull request, merge.
+
+Pair it with the specifications it builds on:
+
+- `prompts/05_WEB_DEV_PROMPT.md` — visual language and page-by-page spec
+- `prompts/06_RESPONSIVE_PROMPT.md` — responsive, navigation and layout spec
+
+## Shipping any change
+
+`docs/GIT_RULES.md`
+
+Mandatory for every contributor, human or agent:
+
+- §2 branching model and branch creation protocol
+- §5 zero-defect quality gate and hook installation
+- §6 sensitive data gate (secret scanning, forbidden files, incident protocol)
+- §7 pull request, review and merge standards
+
+Install the hooks once per clone before doing anything else:
+
+```bash
+npm run hooks:install
+```
+
 ## Bugs
 
 Use:
