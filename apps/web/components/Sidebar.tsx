@@ -120,14 +120,14 @@ export default function Sidebar() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#ffffff',
+                color: 'var(--text-primary)',
                 boxShadow: '0 0 16px rgba(99, 102, 241, 0.4)',
               }}
             >
               <Sparkles size={18} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.03em', color: '#ffffff' }}>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
                 KNOVRA
               </div>
               <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>

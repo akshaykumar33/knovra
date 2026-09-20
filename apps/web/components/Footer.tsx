@@ -2,16 +2,17 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Github, Sparkles, ExternalLink, Heart } from 'lucide-react';
+import { Github, Sparkles, ExternalLink, ShieldCheck, Terminal, Cpu, Network } from 'lucide-react';
 
 export default function Footer() {
   return (
     <footer
       style={{
         borderTop: '1px solid var(--border-default)',
-        backgroundColor: 'rgba(5, 8, 14, 0.95)',
+        backgroundColor: 'var(--bg-primary)',
         marginTop: '5rem',
-        padding: '3.5rem 2rem 2.5rem 2rem',
+        padding: '3.5rem 1.5rem 2.5rem 1.5rem',
+        transition: 'background-color 0.2s ease',
       }}
     >
       <div
@@ -19,8 +20,8 @@ export default function Footer() {
           maxWidth: '1400px',
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr 1fr',
-          gap: '3rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '2.5rem',
           marginBottom: '3rem',
         }}
       >
@@ -32,7 +33,7 @@ export default function Footer() {
                 width: 28,
                 height: 28,
                 borderRadius: '6px',
-                background: 'linear-gradient(135deg, #10B981 0%, #06B6D4 100%)',
+                background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -41,21 +42,21 @@ export default function Footer() {
             >
               <Sparkles size={15} />
             </div>
-            <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.02em' }}>
+            <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
               Knovra
             </span>
-            <span className="stripe-badge stripe-badge-green" style={{ fontSize: '0.6rem' }}>
+            <span className="knovra-badge knovra-badge-green" style={{ fontSize: '0.6rem' }}>
               v0.4.0
             </span>
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '340px' }}>
-            Universal Project Intelligence Layer for AI development agents. Decoupling context persistence from ephemeral model harnesses.
+            Local-first Project Intelligence Runtime for AI Agents. Decoupling persistent repository understanding from ephemeral model harnesses.
           </p>
         </div>
 
         {/* Intelligence Engine */}
         <div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1rem' }}>
             Core Intelligence
           </div>
           <div style={{ display: 'grid', gap: '0.6rem', fontSize: '0.84rem' }}>
@@ -76,7 +77,7 @@ export default function Footer() {
 
         {/* Protocols & Specs */}
         <div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1rem' }}>
             Protocols & Spec
           </div>
           <div style={{ display: 'grid', gap: '0.6rem', fontSize: '0.84rem' }}>
@@ -97,7 +98,7 @@ export default function Footer() {
 
         {/* Monorepo */}
         <div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1rem' }}>
             Ecosystem
           </div>
           <div style={{ display: 'grid', gap: '0.6rem', fontSize: '0.84rem' }}>
@@ -114,7 +115,7 @@ export default function Footer() {
               href="https://github.com/akshaykumar33/knovra"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: 'var(--accent-cyan)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+              style={{ color: 'var(--accent-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               GitHub Monorepo <ExternalLink size={12} />
             </a>
@@ -138,12 +139,14 @@ export default function Footer() {
         }}
       >
         <div>
-          © {new Date().getFullYear()} Knovra Universal Project Intelligence Layer. All rights reserved.
+          © {new Date().getFullYear()} Knovra Project Intelligence Runtime. Open Source (Apache-2.0).
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-mono)' }}>
-          <span>Milestone V0.4</span>
+          <span>Milestone v0.4</span>
           <span>•</span>
-          <span>Local-First Air-Gapped Ready</span>
+          <span style={{ color: 'var(--status-ok)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span className="pulsing-dot" /> Local-First Air-Gapped Ready
+          </span>
         </div>
       </div>
     </footer>

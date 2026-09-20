@@ -101,10 +101,10 @@ export default function MemoryTransferDemo() {
             >
               <Zap size={14} />
             </span>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               Agent Memory Transfer Flow
             </h3>
-            <span className="stripe-badge stripe-badge-purple" style={{ fontSize: '0.68rem' }}>
+            <span className="stripe-badge stripe-badge-purple" style={{ fontSize: '0.75rem' }}>
               Invariant #1
             </span>
           </div>
@@ -146,7 +146,7 @@ export default function MemoryTransferDemo() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Source Harness
             </span>
             <span className="stripe-badge stripe-badge-green">Active</span>
@@ -169,14 +169,14 @@ export default function MemoryTransferDemo() {
               <Bot size={18} />
             </div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#ffffff' }}>{source.name}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{source.id}</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{source.name}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{source.id}</div>
             </div>
           </div>
 
           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'grid', gap: '0.3rem' }}>
             <div>Model: <span style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{source.model}</span></div>
-            <div>Context Tokens: <span style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>{(source.contextTokens || 18450).toLocaleString()} tokens</span></div>
+            <div>Context Tokens: <span style={{ color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>{(source.contextTokens || 18450).toLocaleString('en-US')} tokens</span></div>
             <div>Extracted Facts: <span style={{ color: 'var(--text-primary)' }}>18 facts verified</span></div>
           </div>
         </div>
@@ -200,7 +200,7 @@ export default function MemoryTransferDemo() {
           >
             <ArrowRight size={16} />
           </div>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.4rem', fontWeight: 600 }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem', fontWeight: 600 }}>
             Knovra MCP Hub
           </span>
         </div>
@@ -216,7 +216,7 @@ export default function MemoryTransferDemo() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Target Harness
             </span>
             <span className="stripe-badge stripe-badge-purple">Standby</span>
@@ -239,8 +239,8 @@ export default function MemoryTransferDemo() {
               <Bot size={18} />
             </div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#ffffff' }}>{target.name}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{target.id}</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{target.name}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{target.id}</div>
             </div>
           </div>
 
@@ -294,7 +294,7 @@ export default function MemoryTransferDemo() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: '0.72rem',
+              fontSize: '0.75rem',
               color: copied ? 'var(--status-ok)' : 'var(--text-muted)',
               background: 'none',
               border: 'none',
@@ -376,7 +376,7 @@ export default function MemoryTransferDemo() {
                     />
                   )}
                   <span>{stepText}</span>
-                  {isDone && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>✓ verified</span>}
+                  {isDone && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>✓ verified</span>}
                 </div>
               );
             })}

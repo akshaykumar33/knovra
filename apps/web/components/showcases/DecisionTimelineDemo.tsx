@@ -70,10 +70,10 @@ export default function DecisionTimelineDemo() {
             >
               <GitPullRequest size={14} />
             </span>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               Architectural Decision Records (ADR) Explorer
             </h3>
-            <span className="stripe-badge stripe-badge-purple" style={{ fontSize: '0.68rem' }}>
+            <span className="stripe-badge stripe-badge-purple" style={{ fontSize: '0.75rem' }}>
               Invariant #3
             </span>
           </div>
@@ -107,7 +107,7 @@ export default function DecisionTimelineDemo() {
       </div>
 
       {/* Main Two-Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div className="responsive-detail-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Left Column: ADR List */}
         <div
           style={{
@@ -140,10 +140,10 @@ export default function DecisionTimelineDemo() {
                   </span>
                   {getStatusBadge(adr.status)}
                 </div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#ffffff', marginBottom: '0.3rem' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
                   {adr.title}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   <span>{adr.date}</span>
                   {adr.supersededBy && (
                     <span style={{ color: 'var(--accent-amber)', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -178,7 +178,7 @@ export default function DecisionTimelineDemo() {
             {getStatusBadge(selectedAdr.status)}
           </div>
 
-          <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.75rem' }}>
+          <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
             {selectedAdr.title}
           </h4>
 
@@ -229,7 +229,7 @@ export default function DecisionTimelineDemo() {
 
           <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.82rem' }}>
             <div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
                 Context & Problem Statement
               </div>
               <p style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
@@ -238,7 +238,7 @@ export default function DecisionTimelineDemo() {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
                 Decision Outcome
               </div>
               <p style={{ color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.55 }}>
@@ -247,7 +247,7 @@ export default function DecisionTimelineDemo() {
             </div>
 
             <div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem', letterSpacing: '0.04em' }}>
                 Consequences & Invariants
               </div>
               <p style={{ color: 'var(--text-secondary)', lineHeight: 1.55 }}>
@@ -257,7 +257,7 @@ export default function DecisionTimelineDemo() {
 
             {/* Impacted Code Paths */}
             <div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.04em' }}>
                 Impacted Code Paths ({selectedAdr.affectedFiles.length})
               </div>
               <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
@@ -265,7 +265,7 @@ export default function DecisionTimelineDemo() {
                   <span
                     key={file}
                     style={{
-                      fontSize: '0.72rem',
+                      fontSize: '0.75rem',
                       fontFamily: 'var(--font-mono)',
                       padding: '2px 7px',
                       borderRadius: 'var(--radius-sm)',

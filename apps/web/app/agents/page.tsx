@@ -11,85 +11,82 @@ import {
   Terminal,
   Activity,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { AGENTS, Agent } from '../../lib/data';
 import MemoryTransferDemo from '../../components/showcases/MemoryTransferDemo';
+import { SpotlightCard } from '../../components/SpotlightCard';
+import { AuroraGlow } from '../../components/AuroraGlow';
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs';
+import { KnovraButton } from '../../components/ui/KnovraButton';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { fireCelebrationConfetti } from '../../lib/confetti';
 
 export default function AgentsPage() {
   const [activeTab, setActiveTab] = useState<'agents' | 'transfer'>('agents');
 
+  const handleTransferClick = () => {
+    fireCelebrationConfetti();
+    toast.success('Agent memory transfer protocol initialized');
+    setActiveTab('transfer');
+  };
+
   return (
-    <div style={{ display: 'grid', gap: '2rem' }}>
+    <div style={{ display: 'grid', gap: '2rem', position: 'relative' }}>
+      <AuroraGlow />
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+          <span className="eyebrow-serif" style={{ display: 'block', marginBottom: '8px' }}>AUTONOMOUS AGENT HARNESSES</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
             <span
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: '6px',
-                backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                width: 34,
+                height: 34,
+                borderRadius: '10px',
+                backgroundColor: 'var(--accent-glow)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--accent-blue)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
+                color: 'var(--accent-primary)',
+                border: '1px solid var(--accent-primary)',
               }}
             >
-              <Bot size={16} />
+              <Bot size={18} />
             </span>
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>
-              Agent Registry & Context Consumers
+            <h1 style={{ fontSize: 'clamp(28px, 3.2vw, 42px)', fontWeight: 800, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
+              Agent <span className="font-calligraphy text-gradient-aurora">Registry</span>
             </h1>
-            <span className="stripe-badge stripe-badge-green">{AGENTS.length} Connected</span>
+            <StatusBadge tone="success" pulse={true}>
+              {AGENTS.length} Connected Harnesses
+            </StatusBadge>
           </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: '15px', color: 'var(--text-secondary)', maxWidth: '620px', lineHeight: 1.6 }}>
             Autonomous agent harnesses connected via MCP. Models are transient; Knovra maintains durable state across all harnesses.
           </p>
         </div>
 
-        {/* View Switcher */}
-        <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: 'var(--bg-canvas)', padding: '2px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-          <button
-            onClick={() => setActiveTab('agents')}
-            style={{
-              padding: '5px 12px',
-              fontSize: '0.78rem',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: activeTab === 'agents' ? 'var(--bg-secondary)' : 'transparent',
-              color: activeTab === 'agents' ? '#ffffff' : 'var(--text-muted)',
-              border: 'none',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Registered Agents ({AGENTS.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('transfer')}
-            style={{
-              padding: '5px 12px',
-              fontSize: '0.78rem',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: activeTab === 'transfer' ? 'var(--bg-secondary)' : 'transparent',
-              color: activeTab === 'transfer' ? '#ffffff' : 'var(--text-muted)',
-              border: 'none',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Memory Transfer Flow
-          </button>
-        </div>
+        {/* Unified Segmented View Switcher */}
+        <SegmentedTabs
+          tabs={[
+            { id: 'agents', label: `Registered Agents (${AGENTS.length})`, icon: <Bot size={14} /> },
+            { id: 'transfer', label: 'Memory Transfer Flow', icon: <Zap size={14} /> },
+          ]}
+          active={activeTab}
+          onChange={(tab) => {
+            if (tab === 'transfer') fireCelebrationConfetti();
+            setActiveTab(tab as 'agents' | 'transfer');
+          }}
+        />
       </div>
 
       {activeTab === 'transfer' ? (
         <MemoryTransferDemo />
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '1.25rem' }}>
           {AGENTS.map((agent) => (
-            <div
+            <SpotlightCard
               key={agent.id}
               className="stripe-card"
               style={{
@@ -118,17 +115,17 @@ export default function AgentsPage() {
                       <Bot size={18} />
                     </div>
                     <div>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                         {agent.name}
                       </h3>
-                      <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                         {agent.id}
                       </span>
                     </div>
                   </div>
-                  <span className={`stripe-badge ${agent.status === 'active' ? 'stripe-badge-green' : 'stripe-badge-purple'}`}>
+                  <StatusBadge tone={agent.status === 'active' ? 'success' : 'purple'} pulse={agent.status === 'active'}>
                     {agent.status}
-                  </span>
+                  </StatusBadge>
                 </div>
 
                 <div style={{ display: 'grid', gap: '0.45rem', fontSize: '0.8rem', marginBottom: '1rem' }}>
@@ -143,7 +140,7 @@ export default function AgentsPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                     <span>Context Consumed:</span>
                     <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-purple)' }}>
-                      {((agent.contextTokens || 0)).toLocaleString()} tokens
+                      {((agent.contextTokens || 0)).toLocaleString('en-US')} tokens
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
@@ -154,7 +151,7 @@ export default function AgentsPage() {
 
                 {/* MCP Tool Capabilities */}
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.04em' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.04em' }}>
                     Granted MCP Tools
                   </div>
                   <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
@@ -162,13 +159,13 @@ export default function AgentsPage() {
                       <span
                         key={tool}
                         style={{
-                          fontSize: '0.68rem',
+                          fontSize: '0.75rem',
                           fontFamily: 'var(--font-mono)',
-                          padding: '1px 5px',
-                          borderRadius: '3px',
+                          padding: '2px 7px',
+                          borderRadius: '4px',
                           backgroundColor: 'var(--bg-canvas)',
                           color: 'var(--text-secondary)',
-                          border: '1px solid var(--border-default)',
+                          border: '1px solid var(--border-subtle)',
                         }}
                       >
                         {tool}
@@ -180,16 +177,16 @@ export default function AgentsPage() {
 
               {/* Action Button */}
               <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: '1.15rem', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => setActiveTab('transfer')}
-                  className="btn-stripe-secondary"
-                  style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                <KnovraButton
+                  variant="secondary"
+                  size="sm"
+                  icon={<Zap size={13} />}
+                  onClick={handleTransferClick}
                 >
-                  <Zap size={11} />
-                  <span>Transfer Memory</span>
-                </button>
+                  Transfer Memory
+                </KnovraButton>
               </div>
-            </div>
+            </SpotlightCard>
           ))}
         </div>
       )}

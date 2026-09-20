@@ -64,10 +64,10 @@ export default function ImpactSimulatorDemo() {
             >
               <Activity size={14} />
             </span>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               Change Blast-Radius Simulator
             </h3>
-            <span className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.68rem' }}>
+            <span className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.75rem' }}>
               Phase 12 Engine
             </span>
           </div>
@@ -116,7 +116,7 @@ export default function ImpactSimulatorDemo() {
           gap: '1.25rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           {/* Circular Risk Score Gauge */}
           <div
             style={{
@@ -135,14 +135,14 @@ export default function ImpactSimulatorDemo() {
             <span style={{ fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: riskMeta.color }}>
               {riskMeta.score}
             </span>
-            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
               RISK
             </span>
           </div>
 
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-              <span style={{ fontSize: '1.05rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#ffffff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.2rem' }}>
+              <span style={{ fontSize: '1.05rem', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
                 {currentScenario.targetSymbol}
               </span>
               <span className={`stripe-badge ${riskMeta.badge}`}>
@@ -208,7 +208,7 @@ export default function ImpactSimulatorDemo() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '4px',
-            fontSize: '0.72rem',
+            fontSize: '0.75rem',
             color: copiedCli ? 'var(--status-ok)' : 'var(--text-muted)',
             background: 'none',
             border: 'none',

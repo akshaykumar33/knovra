@@ -3,696 +3,381 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import {
-  Sparkles,
   ArrowRight,
-  Copy,
-  Check,
-  Code2,
-  Terminal,
+  ArrowUpRight,
+  FileCode2,
+  Network,
+  ShieldCheck,
   Layers,
-  Database,
-  Shield,
-  Activity,
+  Terminal,
+  GitBranch,
   Cpu,
-  RefreshCw,
+  Sparkles,
   Zap,
-  Lock,
-  Bot,
-  Sliders,
   CheckCircle2,
-  ExternalLink,
+  HardDrive,
+  Bot,
+  Activity,
+  ChevronRight,
+  Search,
+  Key,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import AuroraGlow from '../components/AuroraGlow';
+import SpotlightCard from '../components/SpotlightCard';
+import { KnovraButton } from '../components/ui/KnovraButton';
 
-const CODE_TABS = [
+interface ChangeExample {
+  name: string;
+  file: string;
+  rule: string;
+  ruleSeverity: 'error' | 'warning' | 'info';
+  detail: string;
+  tokens: number;
+  callers: number;
+  astSnippet: string;
+}
+
+const EXAMPLES: ChangeExample[] = [
   {
-    id: 'context-spec',
-    label: '1. Universal Context Spec',
-    filename: 'context.yaml — Knovra Context Definition',
-    code: `// Define universal project intelligence bounds
-export const projectContext = defineContextSpec({
-  monorepo: "knovra",
-  invariants: ["INV-001", "INV-006"],
-  agents: ["claude-code", "codex", "cursor"],
-  target: {
-    symbol: "AuthInterceptor.authenticate",
-    depth: 2,
-    tokenBudget: 3500,
-  },
-});
-
-// Synthesize deterministic context pack
-const bundle = await knovra.synthesize(projectContext);
-console.log(\`Packed \${bundle.totalTokens} tokens across 12 ADRs\`);`,
-  },
-  {
-    id: 'mcp-gateway',
-    label: '2. Model Context Protocol (MCP)',
-    filename: 'mcp_client.ts — Autonomous Agent Harness',
-    code: `import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-
-// Connect any agent to Knovra via standard JSON-RPC 2.0
-const transport = new StdioClientTransport({
-  command: "knovra",
-  args: ["mcp", "serve"],
-});
-const client = new Client({ name: "claude-code", version: "1.0.0" });
-await client.connect(transport);
-
-// Fetch bounded context pack with zero secret leakage
-const context = await client.callTool({
-  name: "knovra.context",
-  arguments: { prompt: "Fix authentication timeout", budget: 3500 },
-});`,
+    name: 'Authentication Boundary',
+    file: 'auth.interceptor.go',
+    rule: 'RULE-001: Tenant Isolation',
+    ruleSeverity: 'error',
+    detail: 'Cryptographically enforce tenant namespace isolation before any RPC routes to handler logic.',
+    tokens: 380,
+    callers: 14,
+    astSnippet: 'func (a *AuthInterceptor) EnforceTenant(ctx context.Context, tenantID string) error',
   },
   {
-    id: 'impact-ast',
-    label: '3. Blast-Radius AST Engine',
-    filename: 'impact.rs — Tree-sitter Call Graph Traversal',
-    code: `// Execute sub-millisecond reverse dependency traversal in Rust
-let analyzer = ImpactAnalyzer::new(&code_graph);
-let blast_radius = analyzer.analyze_blast_radius(
-    "AuthInterceptor.authenticate",
-    TraversalDepth::Hops(3)
-)?;
-
-// Deterministic risk score: 0 (safe) to 100 (critical)
-println!("Risk Score: {}", blast_radius.risk_score); // 94 (Critical)
-println!("Upstream Callers: {:?}", blast_radius.callers);
-println!("Targeted Test Suites: {:?}", blast_radius.test_suites);`,
+    name: 'Data Access Engine',
+    file: 'query.builder.rs',
+    rule: 'RULE-004: Bounded Queries',
+    ruleSeverity: 'warning',
+    detail: 'AST-analyzed SQL queries must specify explicit LIMIT clauses and avoid unindexed table scans.',
+    tokens: 520,
+    callers: 8,
+    astSnippet: 'pub fn build_bounded_query(filter: &QueryFilter, max_limit: u32) -> Result<QueryPlan>',
+  },
+  {
+    name: 'API Gateway Router',
+    file: 'gateway.service.ts',
+    rule: 'RULE-007: Strict Schema Validation',
+    ruleSeverity: 'info',
+    detail: 'Incoming JSON payloads must validate against Protobuf generated contracts before dispatch.',
+    tokens: 410,
+    callers: 22,
+    astSnippet: 'export async function dispatchGatewayRequest(req: FastifyRequest): Promise<RouteResult>',
   },
 ];
 
-const ARCH_STANDARDS = [
-  {
-    num: 1,
-    title: 'Context Sovereignty Axiom',
-    description: 'AI agents do not own Knovra context. Knovra owns context and agents consume it. Models are replaceable; context is durable.',
-    icon: Database,
-    color: 'var(--accent-emerald)',
-  },
-  {
-    num: 2,
-    title: 'Mediated Agent Gateway',
-    description: 'Agent interactions are strictly mediated via MCP JSON-RPC 2.0. Direct database access by autonomous models is prohibited.',
-    icon: Lock,
-    color: 'var(--accent-cyan)',
-  },
-  {
-    num: 3,
-    title: 'Immutable Decision DAG',
-    description: 'Architecture Decision Records (ADRs) are strictly immutable. New decisions supersede existing records without rewriting history.',
-    icon: Layers,
-    color: 'var(--accent-purple)',
-  },
-  {
-    num: 4,
-    title: 'Incremental AST Diffing',
-    description: 'Code modifications trigger Tree-sitter AST diffing, preserving sub-millisecond query responses without full repository re-scans.',
-    icon: RefreshCw,
-    color: 'var(--accent-blue)',
-  },
-  {
-    num: 5,
-    title: 'Deterministic Token Packing',
-    description: '12-Stage Context Planner enforces mathematically bounded token budgets with priority tiering: Invariants first, followed by ADRs.',
-    icon: Cpu,
-    color: 'var(--accent-amber)',
-  },
-  {
-    num: 6,
-    title: 'Zero Secret Leakage',
-    description: 'All symbol embeddings, agent transcripts, and memory snapshots are actively sanitized for high-entropy tokens and private keys.',
-    icon: Shield,
-    color: 'var(--accent-red)',
-  },
+const INTEGRATIONS = [
+  { name: 'Claude Code', type: 'Anthropic', color: '#A78BFA' },
+  { name: 'Codex & Cursor', type: 'OpenAI / Cursor', color: '#34D399' },
+  { name: 'Gemini CLI', type: 'Google', color: '#38BDF8' },
+  { name: 'MCP Clients', type: 'JSON-RPC 2.0', color: '#FBBF24' },
+  { name: 'Local Ollama', type: 'Air-Gapped / Private', color: '#22D3EE' },
 ];
 
-const CAPABILITIES = [
-  { subsystem: 'Runtime Daemon', layer: 'Orchestration', tech: 'Go 1.22', port: ':8080', latency: '0.8ms', protocol: 'MCP JSON-RPC', status: 'Active' },
-  { subsystem: 'Code Indexer', layer: 'AST Intelligence', tech: 'Rust 1.78 + Tree-sitter', port: ':50051', latency: '0.2ms', protocol: 'gRPC Protobuf', status: 'Active' },
-  { subsystem: 'Context Engine', layer: 'Semantic Brain', tech: 'Python 3.11 + FastAPI', port: ':8000', latency: '2.1ms', protocol: 'HTTP REST', status: 'Active' },
-  { subsystem: 'Code Graph DB', layer: 'Graph Persistence', tech: 'Neo4j 5.20 Community', port: ':7687', latency: '2.8ms', protocol: 'Bolt / Cypher', status: 'Active' },
-  { subsystem: 'Vector Store', layer: 'Vector Persistence', tech: 'PostgreSQL 16 + pgvector', port: ':5432', latency: '1.4ms', protocol: 'Postgres Wire', status: 'Active' },
-  { subsystem: 'Event Mesh', layer: 'Telemetry Bus', tech: 'NATS v2.10 JetStream', port: ':4222', latency: '0.3ms', protocol: 'NATS Protocol', status: 'Active' },
-];
-
-export default function HomePage() {
-  const [activeCodeTab, setActiveCodeTab] = useState(0);
-  const [copiedCode, setCopiedCode] = useState(false);
-
-  // Playground state (Swivora / Mongo style)
-  const [playgroundTarget, setPlaygroundTarget] = useState('AuthInterceptor.authenticate');
-  const [playgroundBudget, setPlaygroundBudget] = useState(3500);
-  const [playgroundTask, setPlaygroundTask] = useState('bugfix');
-  const [playgroundHarness, setPlaygroundHarness] = useState('claude');
-  const [copiedPlayground, setCopiedPlayground] = useState(false);
-
-  const handleCopyCode = (text: string, setCopied: (v: boolean) => void) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const getPlaygroundOutput = () => {
-    switch (playgroundHarness) {
-      case 'claude':
-        return `// Lowered via Knovra MCP Gateway for Claude Code
-{
-  "jsonrpc": "2.0",
-  "result": {
-    "task": "${playgroundTask}",
-    "target": "${playgroundTarget}",
-    "token_budget": ${playgroundBudget},
-    "tokens_packed": ${Math.round(playgroundBudget * 0.92)},
-    "invariants_enforced": ["INV-001 (Sovereignty)", "INV-006 (Zero Secrets)"],
-    "governing_adrs": ["ADR-001", "ADR-005"],
-    "ast_callers": ["GatewayServer.HandleToolCall", "DaemonServer.ServeHTTP"],
-    "recommended_tests": ["services/runtime/internal/auth/auth_test.go"],
-    "context_freshness": "valid (0.18ms latency)"
-  }
-}`;
-      case 'codex':
-        return `### KNOVRA CONTEXT PACKET (CODEX HARNESS)
-TASK: ${playgroundTask.toUpperCase()} | TARGET: ${playgroundTarget}
-BOUNDED TOKENS: ${Math.round(playgroundBudget * 0.92)} / ${playgroundBudget}
-
-## 1. Governing Architecture Invariants
-- Invariant #1: Agents do not own context. Knovra owns context and models consume it.
-- Invariant #6: Zero secret leakage strictly verified across all parameters.
-
-## 2. Active ADR Lineage
-- ADR-001: Polyglot Monorepo Architecture (ACCEPTED)
-- ADR-005: Zero-Defect Git Intervention Gate (ACCEPTED)
-
-## 3. Targeted Source Symbols
-- services/runtime/internal/auth/interceptor.go:18
-  func (a *AuthInterceptor) authenticate(ctx context.Context, token string) (User, error)`;
-      case 'cursor':
-        return `// Knovra Context Provider for Cursor IDE (.cursorrules)
-{
-  "contextType": "knovra.synthesized.bundle",
-  "symbol": "${playgroundTarget}",
-  "taskIntent": "${playgroundTask}",
-  "tokenBudget": ${playgroundBudget},
-  "astLineage": {
-    "sourceFile": "services/runtime/internal/auth/interceptor.go",
-    "callDepth": 2,
-    "callersCount": 3,
-    "testSuite": "services/runtime/internal/auth/auth_test.go"
-  }
-}`;
-      case 'cli':
-        return `$ knovra plan "${playgroundTarget}" --type ${playgroundTask} --budget ${playgroundBudget}
-
-✓ Synthesized bounded context bundle in 0.18ms!
-  • Target Symbol:   ${playgroundTarget}
-  • Task Intent:     ${playgroundTask}
-  • Allocated:       ${Math.round(playgroundBudget * 0.92)} tokens (Cap: ${playgroundBudget})
-  • ADRs Attached:   2 decisions (ADR-001, ADR-005)
-  • AST Callers:     3 upstream functions mapped
-  • Invariants:      100% compliant (0 violations)`;
-      default:
-        return '';
-    }
-  };
+export default function Home() {
+  const [selected, setSelected] = useState(0);
+  const item = EXAMPLES[selected];
 
   return (
-    <div style={{ display: 'grid', gap: '5.5rem' }}>
-      {/* 1. HERO SECTION (Swivora MorphDB Centered Style) */}
-      <section style={{ textAlign: 'center', paddingTop: '2.5rem', maxWidth: '1000px', margin: '0 auto' }}>
-        {/* Top Category Pill */}
-        <div style={{ display: 'inline-flex', marginBottom: '1.75rem' }}>
-          <div className="category-pill">
-            <Sparkles size={14} />
-            <span>Universal Project Intelligence Layer (UPIL) for AI Agents</span>
-          </div>
-        </div>
+    <>
+      {/* Hero Section */}
+      <div className="landing-hero" style={{ position: 'relative' }}>
+        {/* Dynamic Aurora Glow */}
+        <AuroraGlow />
 
-        {/* Massive Gradient Headline */}
-        <h1
-          style={{
-            fontSize: 'clamp(2.5rem, 5vw, 4.25rem)',
-            fontWeight: 900,
-            lineHeight: 1.1,
-            letterSpacing: '-0.035em',
-            marginBottom: '1.5rem',
-            color: '#ffffff',
-          }}
+        <motion.section
+          className="landing-intro"
+          initial={{ opacity: 0, y: 22 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          style={{ position: 'relative', zIndex: 1 }}
         >
-          Models Are Transient.<br />
-          <span className="text-gradient-emerald">Project Intelligence Is Permanent.</span>
-        </h1>
-
-        {/* High-Contrast Centered Subtitle */}
-        <p
-          style={{
-            fontSize: '1.15rem',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6,
-            maxWidth: '780px',
-            margin: '0 auto 2.5rem auto',
-          }}
-        >
-          Knovra translates codebases, architectural decisions, and blast-radii across{' '}
-          <strong style={{ color: '#ffffff' }}>Go</strong>, <strong style={{ color: '#ffffff' }}>Rust</strong>, and{' '}
-          <strong style={{ color: '#ffffff' }}>Python</strong> while keeping autonomous AI coding agents 100% synchronized via the Model Context Protocol.
-        </p>
-
-        {/* Dual Call to Action Buttons */}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link href="/architecture" className="btn-morph-primary">
-            <span>Explore Core Architecture</span>
-            <ArrowRight size={16} />
+          <Link href="/docs" className="glass-pill launch-note" style={{ marginBottom: '1.5rem', display: 'inline-flex' }}>
+            <span className="pulsing-dot" />
+            <span style={{ fontWeight: 700, color: 'var(--accent-primary)', letterSpacing: '0.04em' }}>KNOVRA RUNTIME</span>
+            <span className="font-calligraphy" style={{ color: 'var(--text-secondary)' }}>Persistent project intelligence</span>
+            <ArrowUpRight size={13} style={{ color: 'var(--accent-primary)' }}/>
           </Link>
-          <a href="#playground" className="btn-morph-glass">
-            <Terminal size={16} color="var(--accent-cyan)" />
-            <span>Launch Context Playground</span>
-          </a>
-        </div>
-      </section>
 
-      {/* 2. INTERACTIVE CODE SWITCHER (macOS Window) */}
-      <section style={{ maxWidth: '1050px', margin: '0 auto', width: '100%' }}>
-        {/* Segmented Code Tabs */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '0.5rem',
-            marginBottom: '1.25rem',
-            flexWrap: 'wrap',
-          }}
-        >
-          {CODE_TABS.map((tab, idx) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveCodeTab(idx)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '8px 16px',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.82rem',
-                fontWeight: activeCodeTab === idx ? 700 : 500,
-                color: activeCodeTab === idx ? '#000000' : 'var(--text-secondary)',
-                background: activeCodeTab === idx ? 'linear-gradient(135deg, #10B981 0%, #06B6D4 100%)' : 'rgba(255, 255, 255, 0.04)',
-                border: `1px solid ${activeCodeTab === idx ? 'transparent' : 'var(--border-default)'}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: activeCodeTab === idx ? '0 0 16px rgba(16, 185, 129, 0.35)' : 'none',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+          <h1 style={{ fontWeight: 800 }}>
+            Great code starts with<br/>
+            <em className="font-calligraphy text-gradient-aurora">the whole picture.</em>
+          </h1>
 
-        {/* macOS Style Window Box */}
-        <div className="macos-window">
-          {/* Window Header */}
-          <div className="macos-header">
-            <div className="macos-dots">
-              <span className="macos-dot-red" />
-              <span className="macos-dot-yellow" />
-              <span className="macos-dot-green" />
-              <span style={{ marginLeft: '12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                {CODE_TABS[activeCodeTab].filename}
-              </span>
-            </div>
+          <p style={{ marginTop: '1.25rem', fontSize: '1.1rem', lineHeight: 1.75, color: 'var(--text-secondary)' }}>
+            Your code relationships, architectural decisions, and governance invariants connected in one high-performance local graph. Ready for developers—or autonomous agents.
+          </p>
 
-            <button
-              onClick={() => handleCopyCode(CODE_TABS[activeCodeTab].code, setCopiedCode)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid var(--border-subtle)',
-                color: copiedCode ? 'var(--status-ok)' : 'var(--text-secondary)',
-                fontSize: '0.75rem',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {copiedCode ? <Check size={13} /> : <Copy size={13} />}
-              <span>{copiedCode ? 'Copied' : 'Copy'}</span>
-            </button>
+          <div className="landing-actions" style={{ marginTop: '2.25rem', gap: '1rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            <KnovraButton href="/projects" variant="primary" size="lg" iconTrailing={<ArrowRight size={16} />}>
+              Launch Workspace
+            </KnovraButton>
+            <KnovraButton href="/graph" variant="secondary" size="lg" icon={<Network size={16} style={{ color: 'var(--accent-primary)' }} />}>
+              Explore Graph
+            </KnovraButton>
           </div>
 
-          {/* Syntax Highlighted Code Content */}
-          <div style={{ padding: '1.25rem 1.75rem', overflowX: 'auto', backgroundColor: '#060910' }}>
-            <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.84rem', lineHeight: 1.7, color: '#E2E8F0' }}>
-              <code>{CODE_TABS[activeCodeTab].code}</code>
-            </pre>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. REAL-TIME AST & CONTEXT PLAYGROUND (Swivora / Mongo Style) */}
-      <section id="playground" style={{ maxWidth: '1250px', margin: '0 auto', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <div style={{ display: 'inline-flex', marginBottom: '0.75rem' }}>
-            <span className="category-pill">
-              <Activity size={13} />
-              <span>Interactive Live Engine Demo</span>
+          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '2.5rem', flexWrap: 'wrap' }}>
+            <span className="glass-pill" style={{ fontSize: '11px', padding: '4px 12px' }}>
+              <HardDrive size={13} style={{ color: 'var(--accent-primary)' }}/> Local-First & Air-Gapped
+            </span>
+            <span className="glass-pill" style={{ fontSize: '11px', padding: '4px 12px' }}>
+              <Zap size={13} style={{ color: 'var(--status-ok)' }}/> Sub-millisecond AST Diffs
+            </span>
+            <span className="glass-pill" style={{ fontSize: '11px', padding: '4px 12px' }}>
+              <ShieldCheck size={13} style={{ color: 'var(--accent-secondary)' }}/> Zero Cloud Leakage
             </span>
           </div>
-          <h2 style={{ fontSize: '2.4rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.025em', marginBottom: '0.75rem' }}>
-            Real-Time AST Compilation & Context Playground
-          </h2>
-          <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', maxWidth: '680px', margin: '0 auto' }}>
-            Edit parameters dynamically and observe how Knovra lowers query ASTs into target agent context packs and JSON-RPC envelopes.
-          </p>
-        </div>
+        </motion.section>
 
-        {/* Playground Split Window */}
-        <div className="macos-window">
-          {/* Playground Header Bar */}
-          <div className="macos-header">
-            <div className="macos-dots">
-              <span className="macos-dot-red" />
-              <span className="macos-dot-yellow" />
-              <span className="macos-dot-green" />
-              <span style={{ marginLeft: '12px', fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)', fontWeight: 600 }}>
-                knovra_runtime_daemon (Port 8080)
-              </span>
-            </div>
+        {/* Interactive Change Pipeline Stage */}
+        <section className="landing-stage glass-panel-luxury" aria-label="Interactive project knowledge example" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="stage-toolbar" style={{ backdropFilter: 'blur(16px)', background: 'color-mix(in srgb, var(--bg-primary) 70%, transparent)' }}>
+            <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="pulsing-dot" />
+              <Network size={16} style={{ color: 'var(--accent-primary)' }}/>
+              Live Context Pipeline
+            </span>
+            <span className="glass-pill" style={{ fontSize: '10px', padding: '3px 8px', fontFamily: 'var(--font-mono)' }}>
+              DAEMON :8080 • ACTIVE
+            </span>
+          </div>
 
-            {/* Target Harness Switcher Tabs */}
-            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginRight: '6px' }}>Target Harness:</span>
-              {[
-                { id: 'claude', label: 'Claude Code' },
-                { id: 'codex', label: 'Codex Agent' },
-                { id: 'cursor', label: 'Cursor IDE' },
-                { id: 'cli', label: 'Go CLI' },
-              ].map((h) => (
+          <div className="stage-content">
+            <div className="stage-files" style={{ background: 'color-mix(in srgb, var(--bg-canvas) 50%, transparent)' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Activity size={13} style={{ color: 'var(--accent-primary)' }} />
+                EXPLORE A TARGET
+              </h3>
+              {EXAMPLES.map((e, i) => (
                 <button
-                  key={h.id}
-                  onClick={() => setPlaygroundHarness(h.id)}
+                  key={e.name}
+                  aria-pressed={selected === i}
+                  onClick={() => setSelected(i)}
+                  className="glass-card"
                   style={{
-                    padding: '4px 10px',
-                    fontSize: '0.74rem',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: playgroundHarness === h.id ? 'var(--status-ok)' : 'rgba(255, 255, 255, 0.05)',
-                    color: playgroundHarness === h.id ? '#000000' : 'var(--text-secondary)',
-                    fontWeight: playgroundHarness === h.id ? 700 : 500,
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                    padding: '10px 14px',
+                    marginBottom: '8px',
+                    borderRadius: '10px',
+                    borderColor: selected === i ? 'var(--accent-primary)' : 'var(--border-default)',
+                    background: selected === i ? 'color-mix(in srgb, var(--accent-primary) 12%, var(--bg-card))' : 'transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '4px',
                   }}
                 >
-                  {h.label}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                    <FileCode2 size={15} style={{ color: selected === i ? 'var(--accent-primary)' : 'var(--text-muted)' }}/>
+                    <strong style={{ fontSize: '12px', color: selected === i ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{e.name}</strong>
+                  </div>
+                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{e.file}</span>
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Playground Body: Controls on Left, Lowered Code Output on Right */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 1.6fr', minHeight: '440px' }}>
-            {/* Left Parameters Panel */}
-            <div
-              style={{
-                backgroundColor: 'rgba(8, 12, 20, 0.95)',
-                borderRight: '1px solid var(--border-default)',
-                padding: '1.75rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.35rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem', fontWeight: 700, color: '#ffffff', letterSpacing: '0.04em' }}>
-                  <Sliders size={14} color="var(--accent-cyan)" />
-                  <span>SYNTHESIS PARAMETERS</span>
+            <div className="stage-graph">
+              <div className="stage-flow">
+                {/* Node 1 */}
+                <div className="stage-node glass-card" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ padding: '6px', borderRadius: '6px', background: 'var(--accent-glow)', color: 'var(--accent-primary)' }}>
+                    <Terminal size={15}/>
+                  </span>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>TRIGGER</div>
+                    <strong style={{ fontSize: '12px' }}>{item.name}</strong>
+                  </div>
                 </div>
-                <span className="stripe-badge stripe-badge-green" style={{ fontSize: '0.62rem' }}>
-                  <span className="pulsing-dot" />
-                  Live Reactive
-                </span>
-              </div>
 
-              {/* Input 1: Entity / Target Symbol */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                  Target AST Symbol:
-                </label>
-                <input
-                  type="text"
-                  value={playgroundTarget}
-                  onChange={(e) => setPlaygroundTarget(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    fontFamily: 'var(--font-mono)',
-                    backgroundColor: 'var(--bg-code)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: '#ffffff',
-                    outline: 'none',
-                  }}
-                />
-              </div>
-
-              {/* Input 2: Task Intent */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
-                  Task Intent Classifier:
-                </label>
-                <select
-                  value={playgroundTask}
-                  onChange={(e) => setPlaygroundTask(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    backgroundColor: 'var(--bg-code)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: '#ffffff',
-                    outline: 'none',
-                  }}
-                >
-                  <option value="bugfix">Bugfix (Prioritize error history & caller diffs)</option>
-                  <option value="feature">Feature (Prioritize active ADRs & invariants)</option>
-                  <option value="refactor">Refactor (Prioritize call hierarchy & regression tests)</option>
-                  <option value="code_review">Code Review (Audit governance rules & secrets)</option>
-                </select>
-              </div>
-
-              {/* Input 3: Token Budget Slider */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Bounded Token Budget:
-                  </label>
-                  <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--accent-emerald)' }}>
-                    {playgroundBudget.toLocaleString()} tokens
+                {/* Node 2 (Active Target) */}
+                <div className="stage-node active glass-panel-luxury" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ padding: '6px', borderRadius: '6px', background: 'color-mix(in srgb, var(--accent-primary) 25%, transparent)', color: 'var(--accent-primary)' }}>
+                    <FileCode2 size={16}/>
+                  </span>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--accent-primary)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>AST SYMBOL</div>
+                    <strong style={{ fontSize: '13px' }}>{item.file}</strong>
+                  </div>
+                  <span className="glass-pill" style={{ marginLeft: 'auto', fontSize: '10px', padding: '2px 6px' }}>
+                    {item.tokens} tokens
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min={1000}
-                  max={8000}
-                  step={250}
-                  value={playgroundBudget}
-                  onChange={(e) => setPlaygroundBudget(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--accent-emerald)', cursor: 'pointer' }}
-                />
-              </div>
 
-              {/* Telemetry Metrics */}
-              <div
-                style={{
-                  marginTop: 'auto',
-                  paddingTop: '1rem',
-                  borderTop: '1px solid var(--border-subtle)',
-                  display: 'grid',
-                  gap: '0.4rem',
-                  fontSize: '0.74rem',
-                  fontFamily: 'var(--font-mono)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>AST Traversal Pass:</span>
-                  <span style={{ color: 'var(--accent-cyan)' }}>Tree-sitter (Pass 1)</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Compiler Latency:</span>
-                  <span style={{ color: 'var(--status-ok)' }}>&lt; 0.18 ms</span>
+                {/* Node 3 */}
+                <div className="stage-node glass-card" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ padding: '6px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--status-danger)' }}>
+                    <ShieldCheck size={15}/>
+                  </span>
+                  <div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>GOVERNANCE INVARIANT</div>
+                    <strong style={{ fontSize: '12px' }}>{item.rule}</strong>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Right Output Panel */}
-            <div style={{ backgroundColor: '#05080E', padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
-                  {playgroundHarness.toUpperCase()} COMPILED OUTPUT
-                </div>
-                <button
-                  onClick={() => handleCopyCode(getPlaygroundOutput(), setCopiedPlayground)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    color: copiedPlayground ? 'var(--status-ok)' : 'var(--text-secondary)',
-                    fontSize: '0.75rem',
-                    padding: '3px 9px',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {copiedPlayground ? <Check size={12} /> : <Copy size={12} />}
-                  <span>{copiedPlayground ? 'Copied' : 'Copy Output'}</span>
-                </button>
+            <div className="stage-inspector glass-card" aria-live="polite">
+              <h3>CONTEXT & PROVENANCE</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '14px 0 8px' }}>
+                <GitBranch size={18} style={{ color: 'var(--accent-primary)' }}/>
+                <strong style={{ fontSize: '15px' }}>{item.name}</strong>
+              </div>
+              <p style={{ fontSize: '12px', lineHeight: 1.6, color: 'var(--text-secondary)' }}>{item.detail}</p>
+              
+              <div style={{ margin: '16px 0', padding: '10px', borderRadius: '8px', background: 'var(--bg-code)', border: '1px solid var(--code-border)' }}>
+                <div style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '4px' }}>AST DECLARATION:</div>
+                <code style={{ fontSize: '11px', color: 'var(--text-code)', wordBreak: 'break-all' }}>{item.astSnippet}</code>
               </div>
 
-              <pre
-                style={{
-                  flex: 1,
-                  margin: 0,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.8rem',
-                  lineHeight: 1.65,
-                  color: '#94A3B8',
-                  overflowY: 'auto',
-                }}
-              >
-                <code>{getPlaygroundOutput()}</code>
-              </pre>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                <span>Upstream Callers: <strong style={{ color: 'var(--text-primary)' }}>{item.callers}</strong></span>
+                <span>Budget: <strong style={{ color: 'var(--accent-primary)' }}>{item.tokens} toks</strong></span>
+              </div>
+
+              <Link href="/graph" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--accent-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                Inspect interactive graph <ArrowUpRight size={14}/>
+              </Link>
+
+              <label className="home-task-select" style={{ marginTop: '18px' }}>
+                Quick Selector
+                <select 
+                  aria-label="Example task" 
+                  value={selected} 
+                  onChange={e=>setSelected(Number(e.target.value))}
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-default)', borderRadius: '8px', padding: '8px', color: 'var(--text-primary)' }}
+                >
+                  {EXAMPLES.map((e,i)=><option key={e.name} value={i}>{e.name} ({e.file})</option>)}
+                </select>
+              </label>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* 4. ENTERPRISE ARCHITECTURE STANDARDS (3x2 Glass Cards) */}
-      <section style={{ maxWidth: '1250px', margin: '0 auto', width: '100%' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '2.4rem', fontWeight: 900, color: '#ffffff', letterSpacing: '-0.025em', marginBottom: '0.75rem' }}>
-            Enterprise Architecture Standards
-          </h2>
-          <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', maxWidth: '650px', margin: '0 auto' }}>
-            Architected following Clean Architecture, AST compiler lowering passes, and strict polyglot invariants.
+          <div className="stage-caption" style={{ background: 'color-mix(in srgb, var(--bg-primary) 80%, transparent)' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={13} style={{ color: 'var(--status-ok)' }} />
+              AST Symbol · Graph Edge · Architectural Rule
+            </span>
+            <span>Deterministic context compilation. Zero guesswork.</span>
+          </div>
+        </section>
+      </div>
+
+      {/* Integrations Ribbon */}
+      <div className="landing-integrations" style={{ borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', padding: '24px 0' }}>
+        <small className="eyebrow-serif" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+          Plug-and-play with any developer harness:
+        </small>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {INTEGRATIONS.map((integ) => (
+            <div key={integ.name} className="glass-card" style={{ padding: '8px 18px', display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '9999px' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: integ.color, boxShadow: `0 0 8px ${integ.color}` }} />
+              <strong style={{ fontSize: '13px', fontWeight: 600 }}>{integ.name}</strong>
+              <small style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{integ.type}</small>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Feature Pillars */}
+      <section className="landing-section">
+        <div className="landing-section-header">
+          <div>
+            <span className="eyebrow-serif" style={{ display: 'block', marginBottom: '8px' }}>ARCHITECTURAL MEMORY</span>
+            <h2>Less searching.<br/><span className="text-gradient-aurora">More understanding.</span></h2>
+          </div>
+          <p>
+            Move seamlessly from an ambiguous question to the exact symbol, surrounded by the decisions and governance rules that shape it.
           </p>
         </div>
 
-        {/* 3x2 Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.35rem' }}>
-          {ARCH_STANDARDS.map((std) => {
-            const Icon = std.icon;
-            return (
-              <div
-                key={std.num}
-                className="stripe-card"
-                style={{
-                  padding: '1.5rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  minHeight: '190px',
-                }}
+        <div className="landing-features">
+          {[
+            {
+              icon: Network,
+              title: 'Multi-Hop Code Graph',
+              badge: 'Neo4j & AST',
+              body: 'Follow callers, callees, database queries, and rule boundaries across polyglot microservices and monorepos.',
+              href: '/graph',
+              cta: 'Launch Code Graph',
+            },
+            {
+              icon: Layers,
+              title: 'Deterministic Context Studio',
+              badge: 'Token Packing',
+              body: 'Synthesize minimum sufficient context bundles packed by strict priority tiers: Invariants > ADRs > Call Trees.',
+              href: '/context',
+              cta: 'Open Context Studio',
+            },
+            {
+              icon: ShieldCheck,
+              title: 'Immutable Decision Lineage',
+              badge: 'ADR Preservation',
+              body: 'Capture the reasoning behind code modifications so future developer sessions and AI agents never repeat mistakes.',
+              href: '/decisions',
+              cta: 'Browse Decisions',
+            },
+          ].map((f) => (
+            <Link key={f.title} href={f.href} style={{ textDecoration: 'none', display: 'flex' }}>
+              <SpotlightCard
+                className="landing-feature"
+                spotlightColor="rgba(16, 185, 129, 0.24)"
+                style={{ width: '100%', display: 'flex', flexDirection: 'column', padding: '28px' }}
               >
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-canvas)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: std.color,
-                        border: '1px solid var(--border-default)',
-                      }}
-                    >
-                      <Icon size={16} />
-                    </div>
-                    <span className="stripe-badge" style={{ color: std.color, backgroundColor: 'var(--bg-canvas)' }}>
-                      Invariant #{std.num}
-                    </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <div style={{ width: 44, height: 44, borderRadius: '12px', background: 'var(--accent-glow)', border: '1px solid var(--accent-primary)', display: 'grid', placeItems: 'center', color: 'var(--accent-primary)' }}>
+                    <f.icon size={22} />
                   </div>
-
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff', marginBottom: '0.45rem' }}>
-                    {std.title}
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                    {std.description}
-                  </p>
+                  <span className="glass-pill" style={{ fontSize: '10px' }}>{f.badge}</span>
                 </div>
-              </div>
-            );
-          })}
+                <h3 style={{ fontSize: '20px', fontWeight: 600, margin: '14px 0 10px', color: 'var(--text-primary)' }}>{f.title}</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7, flex: 1, margin: 0 }}>{f.body}</p>
+                <span style={{ color: 'var(--accent-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '20px' }}>
+                  {f.cta} <ArrowUpRight size={14} />
+                </span>
+              </SpotlightCard>
+            </Link>
+          ))}
         </div>
       </section>
 
-      {/* 5. DYNAMIC CAPABILITY MATRIX */}
-      <section style={{ maxWidth: '1250px', margin: '0 auto', width: '100%' }}>
-        <div className="stripe-card" style={{ padding: '1.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', marginBottom: '0.2rem' }}>
-                Dynamic Subsystem Capability Matrix
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Polyglot micro-service network specifications, interfaces, and sub-millisecond SLAs.
-              </p>
-            </div>
-            <span className="stripe-badge stripe-badge-green">
-              <span className="pulsing-dot" />
-              All 6 Engines Synchronized
-            </span>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-default)', textAlign: 'left', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Subsystem</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Architecture Layer</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Technology</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Interface Port</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Wire Protocol</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Latency SLA</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 600, textTransform: 'uppercase', fontSize: '0.68rem' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {CAPABILITIES.map((row, idx) => (
-                  <tr
-                    key={idx}
-                    style={{
-                      borderBottom: '1px solid var(--border-subtle)',
-                      backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.01)',
-                    }}
-                  >
-                    <td style={{ padding: '10px 12px', fontWeight: 700, color: '#ffffff' }}>{row.subsystem}</td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{row.layer}</td>
-                    <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', color: 'var(--accent-cyan)' }}>{row.tech}</td>
-                    <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)' }}>{row.port}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.65rem' }}>{row.protocol}</span>
-                    </td>
-                    <td style={{ padding: '10px 12px', fontFamily: 'var(--font-mono)', color: 'var(--status-ok)', fontWeight: 600 }}>{row.latency}</td>
-                    <td style={{ padding: '10px 12px' }}>
-                      <span className="stripe-badge stripe-badge-green" style={{ fontSize: '0.65rem' }}>{row.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* High-Converting CTA Banner */}
+      <section 
+        className="landing-cta glass-panel-luxury" 
+        style={{
+          margin: '2rem 0 4rem',
+          padding: '48px 40px',
+          borderRadius: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '24px',
+          background: 'radial-gradient(ellipse at 80% 50%, var(--accent-glow), transparent 70%), var(--bg-card)',
+        }}
+      >
+        <div>
+          <span className="eyebrow-serif" style={{ display: 'block', marginBottom: '8px' }}>START EMPOWERING YOUR AGENTS</span>
+          <h2 style={{ fontSize: 'clamp(28px, 3.2vw, 42px)', fontWeight: 800 }}>
+            Your next task.<br/><span className="font-calligraphy text-gradient-aurora">A dramatically better starting point.</span>
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '8px', maxWidth: '520px' }}>
+            Run Knovra locally in your repository with zero cloud dependencies and immediate MCP interoperability.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <KnovraButton href="/projects" variant="primary" size="lg" iconTrailing={<ArrowRight size={16} />}>
+            Open Workspace
+          </KnovraButton>
+          <KnovraButton href="/docs" variant="secondary" size="lg">
+            Documentation
+          </KnovraButton>
         </div>
       </section>
-    </div>
+    </>
   );
 }

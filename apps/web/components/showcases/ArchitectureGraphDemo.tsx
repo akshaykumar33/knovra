@@ -208,10 +208,10 @@ export default function ArchitectureGraphDemo() {
             >
               <Network size={14} />
             </span>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#ffffff' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               Subsystem Topology & Polyglot Mesh
             </h3>
-            <span className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.68rem' }}>
+            <span className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.75rem' }}>
               9 Mesh Nodes
             </span>
           </div>
@@ -233,7 +233,7 @@ export default function ArchitectureGraphDemo() {
               onClick={() => setActiveTier(tab.id)}
               style={{
                 padding: '4px 10px',
-                fontSize: '0.74rem',
+                fontSize: '0.75rem',
                 borderRadius: 'var(--radius-sm)',
                 backgroundColor: activeTier === tab.id ? 'var(--bg-secondary)' : 'transparent',
                 color: activeTier === tab.id ? '#ffffff' : 'var(--text-muted)',
@@ -250,9 +250,9 @@ export default function ArchitectureGraphDemo() {
       </div>
 
       {/* Main Grid: 9 Nodes (3x3 Balanced) + Detailed Inspector */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1.85fr) 1.15fr', gap: '1.5rem', alignItems: 'start' }}>
+      <div className="responsive-detail-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1.85fr) 1.15fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Node Grid: 3 columns x 3 rows = 9 cards perfectly balanced */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.85rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.85rem' }}>
           {filteredNodes.map((node) => {
             const isSelected = selectedNodeId === node.id;
             return (
@@ -276,18 +276,18 @@ export default function ArchitectureGraphDemo() {
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.62rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: getTierColor(node.tier), letterSpacing: '0.04em' }}>
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 700, color: getTierColor(node.tier), letterSpacing: '0.04em' }}>
                       {node.tierLabel.split('•')[1] || node.tier}
                     </span>
-                    <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--status-ok)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--status-ok)', fontWeight: 600 }}>
                       {node.latency}
                     </span>
                   </div>
 
-                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: '#ffffff', marginBottom: '0.2rem', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.86rem', color: 'var(--text-primary)', marginBottom: '0.2rem', fontFamily: 'var(--font-mono)' }}>
                     {node.name}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
                     {node.technology}
                   </div>
                 </div>
@@ -297,7 +297,7 @@ export default function ArchitectureGraphDemo() {
                     <span
                       key={p}
                       style={{
-                        fontSize: '0.62rem',
+                        fontSize: '0.75rem',
                         fontFamily: 'var(--font-mono)',
                         padding: '1px 5px',
                         borderRadius: '3px',
@@ -329,17 +329,17 @@ export default function ArchitectureGraphDemo() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
               NODE TELEMETRY
             </span>
-            <span className="stripe-badge stripe-badge-green" style={{ fontSize: '0.68rem' }}>
+            <span className="stripe-badge stripe-badge-green" style={{ fontSize: '0.75rem' }}>
               <span className="pulsing-dot" style={{ backgroundColor: 'var(--status-ok)' }} />
               ONLINE
             </span>
           </div>
 
           <div>
-            <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-mono)', marginBottom: '0.25rem' }}>
+            <h4 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', marginBottom: '0.25rem' }}>
               {selectedNode.name}
             </h4>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
@@ -349,24 +349,24 @@ export default function ArchitectureGraphDemo() {
 
           <div style={{ display: 'grid', gap: '0.65rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
             <div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Technology Runtime</div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ffffff', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Technology Runtime</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                 {selectedNode.technology}
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Port & Listening Interface</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Port & Listening Interface</div>
               <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)' }}>
                 {selectedNode.port}
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Wire Protocols</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Wire Protocols</div>
               <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                 {selectedNode.protocols.map((p) => (
-                  <span key={p} className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.68rem' }}>
+                  <span key={p} className="stripe-badge stripe-badge-blue" style={{ fontSize: '0.75rem' }}>
                     {p}
                   </span>
                 ))}
@@ -382,19 +382,19 @@ export default function ArchitectureGraphDemo() {
                   border: '1px solid rgba(59, 130, 246, 0.25)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-blue)', fontSize: '0.72rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-blue)', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.2rem' }}>
                   <Shield size={12} />
                   <span>Enforced Architectural Invariant</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#ffffff', lineHeight: 1.4 }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.4 }}>
                   {selectedNode.invariant}
                 </div>
               </div>
             )}
 
             <div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Subsystem Source Location</div>
-              <code style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>Subsystem Source Location</div>
+              <code style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                 {selectedNode.repoPath}
               </code>
             </div>

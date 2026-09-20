@@ -14,8 +14,14 @@ import {
   ShieldCheck,
   Copy,
   Check,
+  Sparkles,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { RECENT_COMMITS } from '../../lib/data';
+import { SpotlightCard } from '../../components/SpotlightCard';
+import { AuroraGlow } from '../../components/AuroraGlow';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { fireMicroSparkle } from '../../lib/confetti';
 
 export default function HistoryPage() {
   const [search, setSearch] = useState('');
@@ -34,39 +40,43 @@ export default function HistoryPage() {
   const handleCopySha = (sha: string) => {
     navigator.clipboard.writeText(sha);
     setCopiedSha(sha);
+    toast.success(`Commit hash ${sha} copied to clipboard`);
+    fireMicroSparkle(0.75, 0.25);
     setTimeout(() => setCopiedSha(null), 1800);
   };
 
   return (
-    <div style={{ display: 'grid', gap: '2rem' }}>
+    <div style={{ display: 'grid', gap: '2rem', position: 'relative' }}>
+      <AuroraGlow />
       {/* Header */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+        <span className="eyebrow-serif" style={{ display: 'block', marginBottom: '8px' }}>CRYPTOGRAPHIC GIT PROVENANCE</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
           <span
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: '6px',
-              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+              width: 34,
+              height: 34,
+              borderRadius: '10px',
+              backgroundColor: 'var(--accent-glow)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--accent-blue)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
+              color: 'var(--accent-primary)',
+              border: '1px solid var(--accent-primary)',
             }}
           >
-            <History size={16} />
+            <History size={18} />
           </span>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.025em', color: '#ffffff' }}>
-            Git History & Provenance Log
+          <h1 style={{ fontSize: 'clamp(28px, 3.2vw, 42px)', fontWeight: 800, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
+            Commit <span className="font-calligraphy text-gradient-aurora">Provenance</span>
           </h1>
-          <span className="stripe-badge stripe-badge-blue">
-            <span className="pulsing-dot" style={{ backgroundColor: 'var(--accent-blue)' }} />
-            Verified Commits
+          <span className="knovra-badge knovra-badge-blue">
+            <span className="pulsing-dot" style={{ width: 5, height: 5 }} />
+            Cryptographically Verified
           </span>
         </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Trace every architectural modification, agent intervention, and rule enforcement to its cryptographic commit hash and author.
+        <p style={{ fontSize: '15px', color: 'var(--text-secondary)', maxWidth: '620px', lineHeight: 1.6 }}>
+          Trace every architectural modification, autonomous agent intervention, and governance enforcement to its immutable commit hash and author.
         </p>
       </div>
 
@@ -117,7 +127,7 @@ export default function HistoryPage() {
       {/* Commit History Timeline */}
       <div style={{ display: 'grid', gap: '0.85rem' }}>
         {filteredCommits.map((cmt) => (
-          <div
+          <SpotlightCard
             key={cmt.hash}
             className="stripe-card"
             style={{
@@ -131,6 +141,7 @@ export default function HistoryPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <GitCommit size={16} color="var(--accent-blue)" />
                 <button
+                  type="button"
                   onClick={() => handleCopySha(cmt.hash)}
                   title="Click to copy full SHA"
                   style={{
@@ -151,10 +162,10 @@ export default function HistoryPage() {
                   {cmt.hash}
                   {copiedSha === cmt.hash ? <Check size={11} color="var(--status-ok)" /> : <Copy size={11} />}
                 </button>
-                <span className="stripe-badge stripe-badge-green" style={{ fontSize: '0.65rem' }}>
-                  <ShieldCheck size={10} style={{ marginRight: '3px' }} />
+                <StatusBadge tone="success">
+                  <ShieldCheck size={11} style={{ marginRight: '3px' }} />
                   Verified GPG
-                </span>
+                </StatusBadge>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 <Calendar size={12} />
@@ -162,7 +173,7 @@ export default function HistoryPage() {
               </div>
             </div>
 
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#ffffff', lineHeight: 1.4 }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.4 }}>
               {cmt.message || cmt.subject}
             </h3>
 
@@ -189,7 +200,7 @@ export default function HistoryPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'var(--accent-blue)',
-                    fontSize: '0.65rem',
+                    fontSize: '0.75rem',
                     fontWeight: 700,
                   }}
                 >
@@ -202,7 +213,7 @@ export default function HistoryPage() {
                 <span>{cmt.filesChanged} files modified</span>
               </div>
             </div>
-          </div>
+          </SpotlightCard>
         ))}
       </div>
     </div>
