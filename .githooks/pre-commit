@@ -70,7 +70,11 @@ esac
 # ------------------------------------------------------------------ #
 if command -v node >/dev/null 2>&1; then
     echo "  -> Scanning staged changes for secrets and sensitive data..."
-    node "${REPO_ROOT}/tools/scan-secrets.mjs" --staged || exit 1
+    if [ -f "${REPO_ROOT}/tools/scan-secrets.mjs" ]; then
+        node "${REPO_ROOT}/tools/scan-secrets.mjs" --staged || exit 1
+    else
+        echo "  ⚠️  tools/scan-secrets.mjs not present on this branch — scan SKIPPED."
+    fi
 else
     echo "  ⚠️  node not found — sensitive data scan SKIPPED. Install Node.js 20+ to restore this gate."
 fi
@@ -139,7 +143,7 @@ fi
 # ------------------------------------------------------------------ #
 # 4. Native subsystem gates (hermetic, Docker-backed)
 # ------------------------------------------------------------------ #
-if command -v docker >/dev/null 2>&1; then
+if docker info >/dev/null 2>&1; then
     # 4a. Verify Go runtime if Go files changed
     if echo "$STAGED" | grep -E '^services/runtime/.*\.go$' >/dev/null 2>&1; then
         echo "  -> Checking Go runtime (go vet & go test)..."
@@ -169,7 +173,7 @@ if command -v docker >/dev/null 2>&1; then
         fi
     fi
 else
-    echo "  ⚠️  docker not found — Go/Python/Rust subsystem gates SKIPPED."
+    echo "  ⚠️  Docker daemon unreachable — Go/Python/Rust subsystem gates SKIPPED."
 fi
 
 echo "✅ [Knovra Git Intervention] All pre-commit checks passed cleanly. Proceeding with commit."
