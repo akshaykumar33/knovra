@@ -24,3 +24,12 @@ During work emit or record, when supported:
 Never treat your own conversation context as the project source of truth when Knovra has fresher project context.
 
 If Knovra context conflicts with live repository code, report the conflict and prefer verified live code while marking the stored context stale.
+
+## Delivery discipline (mandatory)
+
+For user-facing work, follow `prompts/07_UIUX_DELIVERY_PROMPT.md`: UI/UX quality and working
+functionality are both required, and library choices must be justified in the pull request.
+
+For every change, follow `docs/GIT_RULES.md`: branch off `develop` (never commit to `main` or
+`develop` directly), install hooks with `npm run hooks:install`, run `npm run scan:secrets` before
+each commit, never use `--no-verify`, and land the work through a pull request carrying evidence.

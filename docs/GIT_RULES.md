@@ -33,8 +33,12 @@ feature/phase-05-semantic        ●───────●
 | `main` | Production-ready, fully tested releases. Every milestone release is strictly tagged here (`v0.0.0`, `v0.1.0`, `v1.0.0`). | Protected. No direct pushes. Merges only via approved PR from `develop`. |
 | `develop` | Active integration branch. Where accepted phases and features converge. | Protected. Requires passing CI pipeline and Phase Acceptance sign-off. |
 | `feature/phase-XX-<slug>` | Dedicated feature branch for each Knovra phase (e.g. `feature/phase-05-semantic-memory`). | Branched from `develop`, rebased onto `develop` before merge. |
+| `feature/<slug>` | Capability work outside the numbered phase roadmap. | Branched from `develop`. |
 | `fix/<slug>` | Bug fixes with regression tests. | Branched from `develop` (or `main` for hotfixes). |
+| `ui/<slug>` | Visual, layout, design-system, or responsive work. | Branched from `develop`. Requires UI/UX evidence in the PR. |
 | `docs/<slug>` | Documentation, governance, or specification updates. | Branched from `develop`. |
+| `chore/<slug>` | Dependencies, tooling, repository housekeeping. | Branched from `develop`. |
+| `hotfix/<slug>` | Urgent production defect. | Branched from `main`; merged to `main` **and** back-merged to `develop`. |
 
 ### Branch Naming Rules
 - Must be all lowercase.
@@ -42,6 +46,61 @@ feature/phase-05-semantic        ●───────●
 - Phase branches must follow: `feature/phase-<number>-<slug>`.
   - *Example*: `feature/phase-05-semantic-memory`
   - *Example*: `feature/phase-06-decision-memory`
+- One concern per branch. If the name needs the word "and", the work must be split.
+- Slugs describe the *outcome*, not the activity: `ui/graph-focus-mode`, never `ui/changes`.
+
+### Branch Creation Protocol
+
+> [!IMPORTANT]
+> **No work begins on `main` or `develop`.** The `.githooks/pre-commit` branch guard rejects direct
+> commits to both. This is not advisory — it is enforced locally and must also be enforced by
+> GitHub branch protection (see §2.1).
+
+Always branch from a freshly synced integration branch:
+
+```bash
+git switch develop
+git pull --ff-only origin develop        # never a merge-pull; if this fails, reconcile deliberately
+git switch -c feature/phase-13-context-graph-focus-mode
+```
+
+If you started editing on `develop` by mistake, nothing is lost — carry the work over:
+
+```bash
+git switch -c feature/phase-13-context-graph-focus-mode   # uncommitted changes follow you
+```
+
+If you already committed to a protected branch locally (before hooks were installed):
+
+```bash
+git switch -c feature/<slug>          # branch keeps the commits
+git switch develop
+git reset --hard origin/develop       # restore develop to the remote state
+```
+
+Keep the branch current while you work, and rebase rather than merge:
+
+```bash
+git fetch origin
+git rebase origin/develop
+git push --force-with-lease            # never plain --force
+```
+
+Delete the branch after merge (`gh pr merge --delete-branch` does this for you). Long-lived
+feature branches accumulate conflicts and are themselves a defect.
+
+### 2.1 Required GitHub Branch Protection
+
+Local hooks protect the developer; branch protection protects the repository. Both `main` and
+`develop` must be configured with:
+
+- Require a pull request before merging (no direct pushes, no force-pushes, no deletions).
+- Require all status checks from `.github/workflows/ci.yml` to pass, including the secret scan job.
+- Require branches to be up to date before merging.
+- Require conversation resolution before merging.
+- Dismiss stale approvals when new commits are pushed.
+- Restrict who can push to `main` to release engineering only.
+- Enable GitHub secret scanning **and** push protection at the repository level.
 
 ---
 
@@ -172,26 +231,196 @@ State "None" or explicitly document:
    - **Step E (Advance)**: Only when all checks exit with code 0 may the commit be crafted and pushed.
 
 4. **Automated Git Hook Enforcement**:
-   A repository pre-commit hook is provided at `.githooks/pre-commit` to prevent accidental commits when errors exist. Enable via:
+   Repository hooks live in `.githooks/`. **Install them once per clone — this is the first command you run after `git clone`:**
    ```bash
    git config core.hooksPath .githooks
    ```
 
+   | Hook | Enforces |
+   |---|---|
+   | `.githooks/pre-commit` | Branch guard, sensitive data gate, hygiene checks, `apps/web` typecheck, Go/Python/Rust subsystem verification |
+   | `.githooks/commit-msg` | Conventional commit subject: valid type, valid scope, ≤72 chars, no trailing period |
+
+   Verify the installation:
+   ```bash
+   git config --get core.hooksPath      # must print .githooks
+   ```
+
+   > [!CAUTION]
+   > `--no-verify` is **forbidden**. It is not a shortcut for a slow gate, a flaky check, or an
+   > urgent fix — it is how broken code and leaked credentials enter history. If a gate is wrong,
+   > fix the gate in its own `chore/` pull request.
+
 ---
 
-## 6. Pull Request & Code Review Standards
+## 6. Codebase Protection: The Sensitive Data Gate
 
-Every Pull Request must:
-1. Target `develop` (never merge directly into `main` except during milestone release tagging).
-2. Have a clear descriptive title matching conventional commit format.
-3. Include the Phase Acceptance checklist from `quality/PHASE_ACCEPTANCE_PROMPT.md`.
-4. Pass all automated CI jobs (`.github/workflows/ci.yml`).
-5. Pass the Zero-Defect Quality Gate with zero pending errors or warnings.
-6. Maintain a clean, linear git history (prefer rebase and squash or semi-linear merge).
+> [!CAUTION]
+> **A committed secret is a leaked secret.** Git history is distributed, mirrored, and — in this
+> repository specifically — *ingested by AI agents*. Deleting a line later does not revoke a
+> credential. Prevention is the only working control.
+
+### 6.1 Never Commit
+
+| Category | Examples |
+|---|---|
+| Environment files with real values | `.env`, `.env.local`, `.env.production` (commit `.env.example` instead) |
+| Key material | `*.pem`, `*.key`, `*.p12`, `*.pfx`, `*.jks`, `id_rsa`, SSH/GPG keys |
+| Provider credentials | AWS/GCP/Azure keys, `service-account.json`, Anthropic/OpenAI keys, GitHub/GitLab/Slack tokens |
+| Registry credentials | `.npmrc` with `_authToken`, `.pypirc`, Docker `config.json` |
+| Connection strings with inline passwords | `postgres://user:<password>@host/db`, `bolt://neo4j:<password>@host` — with a real value in place of `<password>` |
+| Signed tokens | JWTs, session cookies, signed URLs |
+| Infrastructure state | `terraform.tfstate` (embeds provider secrets in plaintext) |
+| Real data | Customer data, PII, production dumps, captured agent transcripts containing customer code |
+| Oversized blobs | Anything over 2 MB — build output, datasets, binaries, screenshots-as-fixtures |
+
+Configuration is documented **by variable name only**, in `.env.example`. Values live in a secret
+manager or the developer's local untracked environment. This is Invariant #6, and it applies to
+logs, embeddings, graph properties, prompts and test fixtures — not just source files.
+
+### 6.2 Mandatory Pre-Commit Verification Sequence
+
+Run this every time, in this order. Do not stage with `git add .` — stage deliberately.
+
+```bash
+git add -p                 # 1. review every hunk as you stage it
+git status                 # 2. confirm nothing unexpected is staged
+git diff --cached          # 3. read the exact diff you are about to publish
+npm run scan:secrets       # 4. sensitive data gate over staged changes
+git commit                 # 5. hooks re-run every gate before the commit is created
+```
+
+Step 3 is not optional ceremony. Most leaked credentials arrive as collateral inside an unrelated
+file that nobody actually read before committing.
+
+### 6.3 The Scanner
+
+`tools/scan-secrets.mjs` inspects **only added lines**, so pre-existing content never blocks you.
+
+```bash
+npm run scan:secrets                  # staged changes (what the hook runs)
+npm run scan:secrets:all              # every uncommitted change vs HEAD, plus untracked files
+npm run scan:secrets:branch           # the whole branch vs origin/develop — run before opening a PR
+node tools/scan-secrets.mjs --range origin/main..HEAD
+```
+
+It detects credential formats (provider tokens, private key blocks, JWTs, connection strings with
+inline passwords), credential-shaped assignments, forbidden file paths, and oversized blobs.
+Placeholders, `process.env` lookups, and `*.example` templates are ignored by design. Findings are
+always **redacted** in output, so a scanner log never becomes a second leak.
+
+Reviewed false positives — and nothing else:
+
+- Append `knovra:allow-secret` as a trailing comment on the specific line, **or**
+- Add a path or literal substring to `.secret-scan-allow` in the repository root.
+
+Every allowlist entry and pragma must be justified in the pull request description. An unexplained
+allowlist entry is grounds to reject the pull request.
+
+### 6.4 Incident Protocol — A Secret Reached a Commit
+
+Execute in this order. Step 1 is not negotiable and comes before any Git work.
+
+1. **Rotate the credential.** Revoke the old value at the provider. Assume it is compromised the
+   moment it was written to disk, whether or not the commit was pushed.
+2. **Contain.** Not yet pushed → `git reset --soft HEAD~1`, remove the value, recommit. Already
+   pushed → proceed to step 3.
+3. **Purge history.** Use `git filter-repo` (preferred) or the BFG to strip the blob, then
+   `git push --force-with-lease`. Note that GitHub may retain the object in cached views — rotation
+   in step 1 is what actually protects you.
+4. **Notify.** Tell everyone on the affected branch before rewriting shared history.
+5. **Close the hole.** Add the variable to `.env.example`, move the value to the secret manager, and
+   add a scanner rule if the pattern slipped past the gate.
+6. **Record it.** Write a decision record under `docs/decisions/` — cause, blast radius, fix,
+   prevention. Incidents are project intelligence too.
 
 ---
 
-## 7. Milestone Tagging & Release Conventions
+## 7. Pull Request, Review & Merge Standards
+
+**Every change reaches `develop` through a pull request — including solo work.** The pull request is
+the reviewable record of *why* a change exists, and Knovra ingests it as project intelligence.
+
+### 7.1 Raising a Pull Request
+
+```bash
+git push -u origin feature/phase-13-context-graph-focus-mode
+
+gh pr create \
+  --base develop \
+  --title "feat(web): add focus mode to the context graph explorer" \
+  --body-file .github/pull_request_template.md
+```
+
+Then complete `.github/pull_request_template.md` in full. A pull request is not review-ready until:
+
+1. It targets `develop` (only a milestone release targets `main`).
+2. The title matches the conventional commit format from §3.
+3. Motivation, affected subsystems, and a per-file change breakdown are written out.
+4. **UI/UX evidence** is attached for any user-visible change — before/after images or a recording,
+   across breakpoints and themes (see `prompts/07_UIUX_DELIVERY_PROMPT.md` §1).
+5. **Functional evidence** is attached: the commands run and their real output. "Tests pass" without
+   output is not evidence.
+6. The invariant, sensitive-data and Zero-Defect checklists are honestly ticked.
+7. The Phase Acceptance checklist from `quality/PHASE_ACCEPTANCE_PROMPT.md` is included for phase work.
+8. Every new dependency carries its justification (§3 of the UI/UX prompt).
+9. All CI jobs are green. A red job, or a job masked with `|| true`, blocks the merge.
+
+Keep pull requests reviewable: under ~400 changed lines where the work allows, and never mixing a
+refactor with a behavior change. Open it as a draft while work is in flight.
+
+### 7.2 Review Standards
+
+A reviewer must verify, not skim:
+
+- Architectural invariants hold, and boundaries were not crossed for convenience.
+- Claimed evidence actually exists, and screenshots match the described behavior.
+- Failure paths are handled — not just the happy path.
+- No secret, key, dump, or PII anywhere in the diff.
+- No suppressed type/lint errors, no dead commented-out code, no unexplained `any`.
+- Tests genuinely exercise the new behavior rather than asserting trivia.
+
+Approval with unresolved threads is not approval. The author resolves every comment or explains why
+it does not apply.
+
+### 7.3 Merging
+
+Rebase onto the target, re-run the local gates, then merge:
+
+```bash
+git fetch origin
+git rebase origin/develop
+npm run scan:secrets:branch     # rebase can pull in new content — verify again
+git push --force-with-lease
+
+gh pr merge --squash --delete-branch
+```
+
+Merge rules:
+
+- **Default: `--squash`.** One logical change becomes one commit on `develop`. Ensure the squash
+  commit message carries the Big Explanation Style body, not a list of "wip" subjects.
+- **`--merge` only for milestone `develop` → `main` releases**, where individual commits carry their
+  own Big Explanation bodies and must be preserved.
+- **Never `--rebase`-merge a branch whose commits were not individually verified.**
+- Never merge while CI is pending. Never merge past an unresolved review comment.
+- Never merge your own pull request without at least one other reviewer when one is available; when
+  working solo, state explicitly in the description that the change was self-reviewed and how.
+- Delete the branch on merge. Keep `develop` linear.
+
+Immediately after merge:
+
+```bash
+git switch develop
+git pull --ff-only origin develop
+```
+
+For a `hotfix/*` merged into `main`, open a second pull request back-merging `main` into `develop`
+the same day, or the fix will be lost at the next release.
+
+---
+
+## 8. Milestone Tagging & Release Conventions
 
 Releases are tagged on `main` following Semantic Versioning (`vMAJOR.MINOR.PATCH`):
 - `v0.0.0`: Milestone V0 — Understand Code (Phases 01 - 04)
