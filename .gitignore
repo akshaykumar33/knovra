@@ -17,34 +17,38 @@ bin/
 *.so
 *.dylib
 
-# Python
+# Python — language-wide patterns, safe to apply across the monorepo
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
 .pytest_cache/
 .coverage
 htmlcov/
 .venv/
 venv/
-ENV/
+
+# Python packaging directories — SCOPED to the only Python service on purpose.
+# Unscoped, these are generic English words that silently swallow real source:
+# a bare `lib/` hid apps/web/lib/{api,confetti,data}.ts, so the branch typechecked
+# locally and failed CI with "Cannot find module '../../lib/data'". Keep them
+# anchored; never reintroduce an unanchored directory name here.
+services/context-engine/env/
+services/context-engine/ENV/
+services/context-engine/develop-eggs/
+services/context-engine/downloads/
+services/context-engine/eggs/
+services/context-engine/.eggs/
+services/context-engine/lib/
+services/context-engine/lib64/
+services/context-engine/parts/
+services/context-engine/sdist/
+services/context-engine/var/
+services/context-engine/wheels/
+services/context-engine/.installed.cfg
 
 # Go
 services/runtime/bin/

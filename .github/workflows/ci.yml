@@ -56,6 +56,26 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      # Runs before `npm ci` so node_modules cannot mask the result. A source file
+      # the compiler reads but Git ignores produces a branch that builds locally and
+      # fails everywhere else — exactly how `apps/web/lib/` went missing.
+      - name: Verify no source file is hidden by .gitignore
+        run: |
+          set -euo pipefail
+          HIDDEN=$(git ls-files --others --ignored --exclude-standard -- 'apps' 'packages' 'services' \
+            | grep -E '\.(ts|tsx|js|jsx|mjs|cjs|css|scss|json|go|rs|py)$' \
+            | grep -vE '(^|/)(node_modules|\.next[^/]*|dist|build|out|target|coverage|__pycache__|\.venv|\.knovra|\.turbo|artifacts)/' \
+            | grep -vE '(^|/)(tsconfig\.tsbuildinfo|.*\.d\.ts\.map)$' || true)
+          if [ -n "$HIDDEN" ]; then
+            echo "::error::These source files are ignored by .gitignore but look like real source:"
+            echo "$HIDDEN"
+            echo ""
+            echo "Either narrow the offending .gitignore pattern (anchor it to a directory)"
+            echo "or delete the files. See .gitignore's scoped Python section for why."
+            exit 1
+          fi
+          echo "No source files are hidden by .gitignore."
+
       - name: Install Dependencies
         run: npm ci || npm install
 
