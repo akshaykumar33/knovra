@@ -91,19 +91,35 @@ if [ -n "$CONFLICTS" ]; then
     fail "Unresolved merge conflict markers are staged. Resolve the conflict before committing."
 fi
 
-# Application source only: console output is the legitimate interface of CLI scripts and tooling.
-APP_SOURCES=$(echo "$STAGED" \
-    | grep -E '^(apps|packages)/.*\.(ts|tsx|js|jsx|mjs)$' \
+ALL_SOURCES=$(echo "$STAGED" | grep -E '\.(ts|tsx|js|jsx|mjs|cjs)$' || true)
+
+# `debugger` is never a legitimate shipped statement, in any subsystem.
+if [ -n "$ALL_SOURCES" ]; then
+    BREAKPOINTS=$(echo "$ALL_SOURCES" | tr '\n' '\0' \
+        | xargs -0 git diff --cached --no-color -U0 -- \
+        | grep -E '^\+[^+].*(^|[^A-Za-z0-9_.])debugger\s*;' \
+        | grep -v 'knovra:allow-debug' || true)
+    if [ -n "$BREAKPOINTS" ]; then
+        echo "$BREAKPOINTS" | sed 's/^+/      /'
+        fail "A 'debugger' statement is staged (see above). Remove it before committing."
+    fi
+fi
+
+# Stray console output is debug residue in UI code, but it is the legitimate
+# interface of a CLI, an MCP stdio server, or a build script — so this check is
+# scoped to apps/* and excludes tests, config and script directories.
+UI_SOURCES=$(echo "$ALL_SOURCES" \
+    | grep -E '^apps/' \
     | grep -vE '\.(test|spec)\.|\.config\.|(^|/)(scripts|tools|bin)/' || true)
 
-if [ -n "$APP_SOURCES" ]; then
-    DEBUG_HITS=$(echo "$APP_SOURCES" | tr '\n' '\0' \
+if [ -n "$UI_SOURCES" ]; then
+    CONSOLE_HITS=$(echo "$UI_SOURCES" | tr '\n' '\0' \
         | xargs -0 git diff --cached --no-color -U0 -- \
-        | grep -E '^\+.*(debugger;|console\.(log|debug)\()' \
+        | grep -E '^\+[^+].*console\.(log|debug)\(' \
         | grep -v 'knovra:allow-debug' || true)
-    if [ -n "$DEBUG_HITS" ]; then
-        echo "$DEBUG_HITS" | sed 's/^+/      /'
-        fail "Debug statements are staged in application source (see above). Remove them, route through the logger, or mark the line with 'knovra:allow-debug'."
+    if [ -n "$CONSOLE_HITS" ]; then
+        echo "$CONSOLE_HITS" | sed 's/^+/      /'
+        fail "Debug console output is staged in application UI code (see above). Remove it, route it through the logger, or mark the line with 'knovra:allow-debug'."
     fi
 fi
 
