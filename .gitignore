@@ -2,6 +2,7 @@
 node_modules/
 .pnp
 .pnp.js
+.pnpm-store/
 
 # Build Outputs
 dist/
@@ -50,13 +51,29 @@ services/runtime/bin/
 *.test
 *.out
 
-# Environment & Secrets
+# Environment & Secrets (see docs/GIT_RULES.md §6 — ignoring is a backstop, not the gate)
 .env
 .env.local
 .env.*.local
+!.env.example
 *.pem
 *.key
 *.cert
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+.npmrc
+.pypirc
+secrets.json
+service-account*.json
+credentials*.json
+*.tfstate
+*.tfstate.backup
 
 # Logs
 logs/
@@ -81,3 +98,16 @@ Thumbs.db
 # Knovra local runtime cache
 .knovra/
 
+# Generated artifacts: release tarballs, QA screenshots, probe output, local databases.
+# Evidence belongs attached to a pull request, not in the repository history.
+artifacts/
+
+# Design reference captures. Large binaries, and `public/` is served to end users —
+# internal art direction must not ship with the product. Keep them locally or in
+# design storage; docs/design/reference-manifest.json records what they were.
+apps/web/public/design-reference/
+
+/apps/web/.next-redesign/
+/apps/web/.next-review/
+/apps/web/.next-library/
+/apps/web/.next-audit/

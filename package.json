@@ -15,6 +15,12 @@
     "test:api": "npm --prefix apps/api run test",
     "test:contracts": "npm --prefix packages/contracts run test",
     "lint:all": "npm --prefix apps/web run lint && npm --prefix apps/api run lint",
+    "typecheck:web": "npm --prefix apps/web run typecheck",
+    "hooks:install": "git config core.hooksPath .githooks && git config --get core.hooksPath",
+    "scan:secrets": "node tools/scan-secrets.mjs --staged",
+    "scan:secrets:all": "node tools/scan-secrets.mjs --worktree",
+    "scan:secrets:branch": "node tools/scan-secrets.mjs --range origin/develop..HEAD",
+    "verify:web": "npm run typecheck:web && npm --prefix apps/web run lint && npm --prefix apps/web run test",
     "build:all": "npm --prefix packages/contracts run build && npm --prefix packages/config run build && npm --prefix apps/web run build && npm --prefix apps/api run build"
   },
   "workspaces": [
