@@ -34,9 +34,12 @@ test('superseded notes are excluded, invalid links rejected, content redacted',t
 });
 
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 test('CLI handles the default root, explicit root and repeated command words',t=>{
  const {root}=fixture(t);
- const cli=path.resolve('packages/local/src/cli.mjs');
+ // Resolve from this file, not process.cwd(): the package CI job runs with
+ // working-directory packages/local, where a repo-root-relative path breaks.
+ const cli=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../src/cli.mjs');
  function run(args) { const r=spawnSync(process.execPath,[cli,...args],{cwd:root,encoding:'utf8',windowsHide:true}); assert.equal(r.status,0,r.stderr); return JSON.parse(r.stdout); }
  const saved=run(['remember','remember','Keep the word remember in this note.']);
  assert.equal(saved.title,'remember');
