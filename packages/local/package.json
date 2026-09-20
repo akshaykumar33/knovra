@@ -1,0 +1,12 @@
+{
+  "name": "@knovra/local",
+  "version": "0.3.0",
+  "description": "Persistent local project search, context packs, decision memory, and MCP tools.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": { "node": ">=24.0.0" },
+  "bin": { "knovra": "./src/cli.mjs" },
+  "exports": { ".": { "types": "./src/index.d.ts", "default": "./src/index.mjs" } },
+  "files": ["src", "README.md", "INTEGRATION.md"],
+  "scripts": { "test": "node --test test/*.test.mjs", "check": "node --check src/index.mjs && node --check src/cli.mjs && node --check src/mcp.mjs && node --check src/files.mjs" }
+}

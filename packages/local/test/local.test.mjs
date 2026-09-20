@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { Knovra } from '../src/index.mjs';
+import { handle } from '../src/mcp.mjs';
+function fixture() { const root = fs.mkdtempSync(path.join(os.tmpdir(), 'knovra-local-')); fs.writeFileSync(path.join(root, 'auth.ts'), 'export function authenticate(user) { return tenantSafe(user); }\n'); fs.writeFileSync(path.join(root, 'README.md'), '# Auth\nTenant safe authentication decision.\n'); return root; }
+test('indexes, searches, builds context, and persists memories', () => { const root = fixture(); let k = new Knovra(root); const first = k.index(); assert.equal(first.files, 2); assert.equal(k.search('tenant safe').length > 0, true); assert.match(k.context('tenant authentication').markdown, /README\.md/); k.remember({ id: 'auth-rule', kind: 'rule', title: 'Tenant boundary', body: 'Every auth query is tenant scoped.' }); k.close(); k = new Knovra(root); assert.equal(k.memories()[0].id, 'auth-rule'); assert.equal(k.index().unchanged, 2); k.close(); });
+test('supersession is durable and duplicate IDs are rejected', () => { const root = fixture(); const k = new Knovra(root); k.remember({ id: 'one', kind: 'decision', title: 'First', body: 'Use local storage.' }); k.remember({ id: 'two', kind: 'decision', title: 'Second', body: 'Keep the decision history.', supersedes: 'one' }); assert.equal(k.memories()[0].id, 'two'); assert.throws(() => k.remember({ id: 'two', kind: 'decision', title: 'Collision', body: 'No.' })); k.close(); });
+test('MCP supports initialize, list, and search', async () => { const root = fixture(); const k = new Knovra(root); k.index(); k.close(); assert.equal((await handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }, root)).result.serverInfo.name, 'knovra-local'); assert.equal((await handle({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, root)).result.tools.length, 8); const result = await handle({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'knovra_search', arguments: { query: 'tenant' } } }, root); assert.equal(result.result.isError, undefined); assert.match(result.result.content[0].text, /README\.md/); });
+
