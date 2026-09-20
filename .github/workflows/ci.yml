@@ -11,6 +11,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    name: Sensitive Data Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Scans only the lines this change adds — see docs/GIT_RULES.md §6.
+      - name: Scan changed lines for secrets
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="$(git merge-base "origin/${BASE_REF}" HEAD)..HEAD"
+          elif [ -n "${BEFORE_SHA:-}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            RANGE="${BEFORE_SHA}..HEAD"
+          else
+            RANGE="HEAD~1..HEAD"
+          fi
+          echo "Scanning range: ${RANGE}"
+          node tools/scan-secrets.mjs --range "${RANGE}"
+
+  web-typecheck:
+    name: Web TypeScript Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      # Strict by design: no `|| true`. Type errors block the merge.
+      - name: Typecheck apps/web
+        run: npm run typecheck:web
+
   validate-infra:
     name: Validate Docker & Compose
     runs-on: ubuntu-latest

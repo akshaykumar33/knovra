@@ -1,0 +1,60 @@
+#!/usr/bin/env sh
+# Knovra Git Commit-Message Hook
+# Enforces the conventional commit contract from docs/GIT_RULES.md §3.
+#
+# Git history is a primary input to Knovra's own project intelligence, so a
+# malformed commit title is a data-quality defect, not a style preference.
+
+MSG_FILE="$1"
+SUBJECT=$(head -n 1 "$MSG_FILE")
+
+# Allow git's own generated commits through untouched.
+case "$SUBJECT" in
+    "Merge "*|"Revert "*|"fixup! "*|"squash! "*|"Reapply "*) exit 0 ;;
+esac
+
+TYPES='feat|fix|refactor|perf|test|infra|docs|chore'
+SCOPES='foundation|ingest|indexer|graph|semantic|decision|git|planner|gateway|events|incremental|impact|web|desktop|security|eval|deps|release|prompts'
+
+reject() {
+    echo ""
+    echo "❌ [Knovra Commit Contract] $1"
+    echo ""
+    echo "   Your subject line:"
+    echo "     $SUBJECT"
+    echo ""
+    echo "   Required format:"
+    echo "     <type>(<scope>): <imperative summary, max 72 chars, no trailing period>"
+    echo ""
+    echo "   Allowed types : $(echo "$TYPES" | tr '|' ' ')"
+    echo "   Allowed scopes: $(echo "$SCOPES" | tr '|' ' ')"
+    echo ""
+    echo "   Examples:"
+    echo "     feat(web): add keyboard-driven context graph explorer"
+    echo "     fix(graph): prevent orphaned Symbol nodes after file deletion"
+    echo "     docs(prompts): add UI/UX and delivery prompt"
+    echo ""
+    echo "   Significant or cross-subsystem commits must also use the Big Explanation"
+    echo "   Style body — see docs/GIT_RULES.md §4."
+    echo ""
+    exit 1
+}
+
+if ! printf '%s' "$SUBJECT" | grep -qE "^($TYPES)(\([a-z0-9-]+\))?!?: .+"; then
+    reject "Subject line does not match the conventional commit format."
+fi
+
+if ! printf '%s' "$SUBJECT" | grep -qE "^($TYPES)\(($SCOPES)\)!?: .+"; then
+    reject "Subject line is missing a valid scope."
+fi
+
+LENGTH=$(printf '%s' "$SUBJECT" | wc -c | tr -d ' ')
+if [ "$LENGTH" -gt 72 ]; then
+    reject "Subject line is ${LENGTH} characters; the limit is 72."
+fi
+
+case "$SUBJECT" in
+    *.) reject "Subject line must not end with a period." ;;
+esac
+
+exit 0

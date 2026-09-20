@@ -1,47 +1,159 @@
 #!/usr/bin/env sh
-# Knovra Git Pre-Commit Hook: Zero-Defect Intervention Gate
-# Enforces: Check all errors and issues if any, fix them, and then proceed.
+# Knovra Git Pre-Commit Hook: Zero-Defect + Sensitive Data Intervention Gate
+# Enforces: check all errors and issues if any, fix them, and only then proceed.
+#
+# Install once per clone:  git config core.hooksPath .githooks
+#
+# Gates, in order (cheapest first):
+#   0. Branch guard            — no direct commits on main / develop
+#   1. Sensitive data gate     — secrets, keys, credentials, oversized blobs
+#   2. Hygiene gate            — merge markers, debug leftovers
+#   3. TypeScript gate         — apps/web typecheck
+#   4. Native subsystem gates  — Go / Python / Rust (hermetic, via Docker)
+#
+# Escape hatches exist per gate and are named in the failure message.
+# `--no-verify` is never an acceptable escape hatch.
 
 export MSYS_NO_PATHCONV=1
 
 echo "🔍 [Knovra Git Intervention] Running pre-commit quality gate..."
 
-# Resolve repository root directory across POSIX and Windows Git Bash
 REPO_ROOT=$(pwd -W 2>/dev/null || pwd)
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 
-# Check if Docker is available for hermetic verification
+if [ -z "$STAGED" ]; then
+    echo "  -> Nothing staged. Skipping gates."
+    exit 0
+fi
+
+fail() {
+    echo ""
+    echo "❌ [Knovra Git Intervention] $1"
+    echo ""
+    exit 1
+}
+
+# ------------------------------------------------------------------ #
+# 0. Branch guard — feature work never lands by direct commit
+# ------------------------------------------------------------------ #
+# symbolic-ref (not rev-parse) so an unborn branch still reports its real name.
+BRANCH=$(git symbolic-ref --short -q HEAD 2>/dev/null || echo "DETACHED")
+case "$BRANCH" in
+    main|develop)
+        if [ "$KNOVRA_ALLOW_PROTECTED_COMMIT" != "1" ]; then
+            echo ""
+            echo "❌ [Knovra Branch Guard] Direct commits to '$BRANCH' are not allowed."
+            echo ""
+            echo "   '$BRANCH' is an integration branch: it only advances through a reviewed pull request."
+            echo "   Move your staged work onto a branch of its own and commit there:"
+            echo ""
+            echo "     git switch -c feature/phase-XX-<slug>     # or fix/<slug>, docs/<slug>, chore/<slug>"
+            echo "     git commit"
+            echo ""
+            echo "   Your staged changes carry over to the new branch untouched."
+            echo "   Release-engineering exception (merge/tag commits only):"
+            echo "     KNOVRA_ALLOW_PROTECTED_COMMIT=1 git commit ..."
+            echo ""
+            echo "   Full rules: docs/GIT_RULES.md §2"
+            echo ""
+            exit 1
+        fi
+        echo "  -> Branch guard bypassed for '$BRANCH' (KNOVRA_ALLOW_PROTECTED_COMMIT=1)."
+        ;;
+    *)
+        echo "  -> Branch guard OK ('$BRANCH')."
+        ;;
+esac
+
+# ------------------------------------------------------------------ #
+# 1. Sensitive data gate — the codebase-protection step
+# ------------------------------------------------------------------ #
+if command -v node >/dev/null 2>&1; then
+    echo "  -> Scanning staged changes for secrets and sensitive data..."
+    node "${REPO_ROOT}/tools/scan-secrets.mjs" --staged || exit 1
+else
+    echo "  ⚠️  node not found — sensitive data scan SKIPPED. Install Node.js 20+ to restore this gate."
+fi
+
+# ------------------------------------------------------------------ #
+# 2. Hygiene gate — never commit conflict markers or debug leftovers
+# ------------------------------------------------------------------ #
+echo "  -> Checking staged hygiene (conflict markers, debug leftovers)..."
+
+WS_COUNT=$(git diff --cached --check --no-color 2>/dev/null | grep -c 'whitespace' || true)
+if [ "${WS_COUNT:-0}" -gt 0 ]; then
+    echo "  ⚠️  ${WS_COUNT} whitespace issue(s) staged (advisory, not blocking): git diff --cached --check"
+fi
+
+CONFLICTS=$(git diff --cached --no-color -U0 \
+    | grep -E '^\+(<{7}|={7}|>{7})( |$)' || true)
+if [ -n "$CONFLICTS" ]; then
+    fail "Unresolved merge conflict markers are staged. Resolve the conflict before committing."
+fi
+
+# Application source only: console output is the legitimate interface of CLI scripts and tooling.
+APP_SOURCES=$(echo "$STAGED" \
+    | grep -E '^(apps|packages)/.*\.(ts|tsx|js|jsx|mjs)$' \
+    | grep -vE '\.(test|spec)\.|\.config\.|(^|/)(scripts|tools|bin)/' || true)
+
+if [ -n "$APP_SOURCES" ]; then
+    DEBUG_HITS=$(echo "$APP_SOURCES" | tr '\n' '\0' \
+        | xargs -0 git diff --cached --no-color -U0 -- \
+        | grep -E '^\+.*(debugger;|console\.(log|debug)\()' \
+        | grep -v 'knovra:allow-debug' || true)
+    if [ -n "$DEBUG_HITS" ]; then
+        echo "$DEBUG_HITS" | sed 's/^+/      /'
+        fail "Debug statements are staged in application source (see above). Remove them, route through the logger, or mark the line with 'knovra:allow-debug'."
+    fi
+fi
+
+# ------------------------------------------------------------------ #
+# 3. TypeScript gate — apps/web must typecheck before any commit
+# ------------------------------------------------------------------ #
+if echo "$STAGED" | grep -E '^apps/web/.*\.(ts|tsx)$' >/dev/null 2>&1; then
+    if [ -d "${REPO_ROOT}/apps/web/node_modules" ] || [ -d "${REPO_ROOT}/node_modules" ]; then
+        echo "  -> Typechecking apps/web (tsc --noEmit)..."
+        npm --prefix "${REPO_ROOT}/apps/web" run --silent typecheck || \
+            fail "apps/web typecheck failed. Fix every type error before committing — do not suppress with 'any' or @ts-ignore."
+    else
+        echo "  ⚠️  apps/web dependencies not installed — typecheck SKIPPED. Run 'npm install'."
+    fi
+fi
+
+# ------------------------------------------------------------------ #
+# 4. Native subsystem gates (hermetic, Docker-backed)
+# ------------------------------------------------------------------ #
 if command -v docker >/dev/null 2>&1; then
-    # 1. Verify Go runtime if Go files changed
-    if git diff --cached --name-only | grep -E '^services/runtime/.*\.go$' >/dev/null 2>&1; then
+    # 4a. Verify Go runtime if Go files changed
+    if echo "$STAGED" | grep -E '^services/runtime/.*\.go$' >/dev/null 2>&1; then
         echo "  -> Checking Go runtime (go vet & go test)..."
         docker run --rm -v "${REPO_ROOT}/services/runtime:/app" -w /app golang:1.22-alpine sh -c "go vet ./... && go test ./..."
 
         if [ $? -ne 0 ]; then
-            echo "❌ [Knovra Git Intervention] Go runtime check failed! Fix all Go errors and issues before committing."
-            exit 1
+            fail "Go runtime check failed! Fix all Go errors and issues before committing."
         fi
     fi
 
-    # 2. Verify Python context-engine if Python files changed
-    if git diff --cached --name-only | grep -E '^services/context-engine/.*\.py$' >/dev/null 2>&1; then
+    # 4b. Verify Python context-engine if Python files changed
+    if echo "$STAGED" | grep -E '^services/context-engine/.*\.py$' >/dev/null 2>&1; then
         echo "  -> Checking Python context-engine (ruff & pytest)..."
         docker run --rm -v "${REPO_ROOT}/services/context-engine:/app" -w /app knovra-context-engine:test sh -c "ruff check . && pytest"
         if [ $? -ne 0 ]; then
-            echo "❌ [Knovra Git Intervention] Python context-engine check failed! Fix all Python errors and issues before committing."
-            exit 1
+            fail "Python context-engine check failed! Fix all Python errors and issues before committing."
         fi
     fi
 
-    # 3. Verify Rust code-indexer if Rust files changed
-    if git diff --cached --name-only | grep -E '^services/code-indexer/.*\.rs$' >/dev/null 2>&1; then
+    # 4c. Verify Rust code-indexer if Rust files changed
+    if echo "$STAGED" | grep -E '^services/code-indexer/.*\.rs$' >/dev/null 2>&1; then
         echo "  -> Checking Rust code-indexer (cargo check & cargo test)..."
         docker run --rm -v "${REPO_ROOT}/services/code-indexer:/app" -w /app rust:1.78-alpine sh -c "cargo check && cargo test"
 
         if [ $? -ne 0 ]; then
-            echo "❌ [Knovra Git Intervention] Rust code-indexer check failed! Fix all Rust errors and issues before committing."
-            exit 1
+            fail "Rust code-indexer check failed! Fix all Rust errors and issues before committing."
         fi
     fi
+else
+    echo "  ⚠️  docker not found — Go/Python/Rust subsystem gates SKIPPED."
 fi
 
 echo "✅ [Knovra Git Intervention] All pre-commit checks passed cleanly. Proceeding with commit."
