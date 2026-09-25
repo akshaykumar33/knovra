@@ -195,6 +195,21 @@ export class Knovra {
     return { id, kind, title, body, createdAt, supersedes };
   }
 
+  files() {
+    return this.db.prepare('SELECT path, bytes FROM files ORDER BY path').all().map(f => ({ path: f.path, bytes: Number(f.bytes) }));
+  }
+
+  // Rebuilt from the redacted index, never from disk: only indexed, sanitized text is ever returned.
+  file(relative) {
+    relative = text(relative, 'path', 1000);
+    const meta = this.db.prepare('SELECT path, bytes FROM files WHERE path=?').get(relative);
+    if (!meta) return null;
+    const chunks = this.db.prepare("SELECT start, content FROM entries WHERE path=? AND kind='file'").all(relative).sort((a, b) => Number(a.start) - Number(b.start));
+    const symbols = this.db.prepare("SELECT start, content FROM entries WHERE path=? AND kind='symbol'").all(relative)
+      .map(s => ({ name: s.content.split(' ')[0], line: Number(s.start) })).sort((a, b) => a.line - b.line);
+    return { path: meta.path, bytes: Number(meta.bytes), content: chunks.map(c => c.content).join('\n'), symbols };
+  }
+
   memories({ includeSuperseded = false } = {}) {
     return this.db.prepare(`SELECT m.*, (SELECT id FROM memories n WHERE n.supersedes=m.id) AS superseded_by FROM memories m ${includeSuperseded ? '' : 'WHERE NOT EXISTS (SELECT 1 FROM memories n WHERE n.supersedes=m.id)'} ORDER BY created_at DESC, id LIMIT 500`).all();
   }

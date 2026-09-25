@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Added `files()` and `file(path)` to list indexed files and rebuild one from its redacted index text, with its symbols. Neither reads from disk.
+
 ## 0.3.0
 
 - Added cross-platform package CI for Node 24.
