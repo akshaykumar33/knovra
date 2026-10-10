@@ -115,3 +115,5 @@ apps/web/public/design-reference/
 /apps/web/.next-review/
 /apps/web/.next-library/
 /apps/web/.next-audit/
+/apps/web/.next-revamp/
+/.codegraph/

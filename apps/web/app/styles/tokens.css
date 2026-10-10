@@ -1,0 +1,172 @@
+/*
+ * Knovra design tokens — "field notes for a codebase".
+ * Calm, precise, sourced. Neutrals do the work; the signal colour marks action and citation.
+ * Type scale ratio 1.2 from 16px; spacing on a 4px base.
+ */
+
+:root {
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  --text-xs: 0.75rem;    /* 12 labels */
+  --text-sm: 0.8125rem;  /* 13 metadata */
+  --text-ui: 0.875rem;   /* 14 controls, dense rows */
+  --text-md: 1rem;       /* 16 prose */
+  --text-lg: 1.1875rem;  /* 19 */
+  --text-xl: 1.4375rem;  /* 23 */
+  --text-2xl: 1.75rem;   /* 28 page titles */
+  --text-3xl: 2.125rem;  /* 34 */
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+
+  --sidebar-w: 248px;
+  --measure: 68ch;
+
+  /* Light: warm paper and ink. */
+  color-scheme: light;
+  --bg: #f5f3ee;
+  --surface: #fbfaf7;
+  --surface-2: #efece5;
+  --surface-3: #e7e3da;
+  --line: #e0dbd0;
+  --line-strong: #c9c2b4;
+  --line-input: #8c8578;
+  --text: #1c1b19;
+  --text-2: #4f4b44;
+  --text-3: #69645a;
+  --accent: #b93d0c;
+  --accent-hover: #9e3309;
+  --accent-text: #fffaf5;
+  --accent-soft: #f8e9df;
+  --accent-line: #e7b89c;
+  --ok: #2c6a38;
+  --ok-soft: #e1eddf;
+  --warn: #8a5a00;
+  --warn-soft: #f4e8cc;
+  --danger: #b0261b;
+  --danger-soft: #f6dfdb;
+  --kind-decision: #3d5a98;
+  --kind-decision-soft: #e2e8f4;
+  --kind-rule: #8a3f7a;
+  --kind-rule-soft: #f1e2ee;
+  --kind-note: #4f4b44;
+  --kind-note-soft: #ebe7df;
+  --highlight: #fbecc4;
+  --syn-kw: #8a3f7a;
+  --syn-str: #2c6a38;
+  --syn-com: #6e695f;
+  --syn-num: #8a5a00;
+  --syn-fn: #3d5a98;
+  --syn-type: #9e3309;
+  --focus: #b93d0c;
+  --shadow-sm: 0 1px 2px rgba(60, 45, 20, 0.06);
+  --shadow-md: 0 1px 2px rgba(60, 45, 20, 0.06), 0 8px 24px rgba(60, 45, 20, 0.08);
+  --shadow-lg: 0 2px 4px rgba(60, 45, 20, 0.06), 0 24px 48px rgba(60, 45, 20, 0.14);
+}
+
+/* Dark: warm charcoal, lifted surfaces rather than heavier shadows. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #131210;
+    --surface: #1a1916;
+    --surface-2: #211f1c;
+    --surface-3: #2a2824;
+    --line: #2d2b27;
+    --line-strong: #3f3c36;
+    --line-input: #6f6a61;
+    --text: #ece9e2;
+    --text-2: #bdb8ae;
+    --text-3: #969086;
+    --accent: #f08048;
+    --accent-hover: #f5976a;
+    --accent-text: #1a1310;
+    --accent-soft: #3a2519;
+    --accent-line: #6d3b22;
+    --ok: #7cc38a;
+    --ok-soft: #1d2e20;
+    --warn: #e2b456;
+    --warn-soft: #33290f;
+    --danger: #f08a7e;
+    --danger-soft: #3b1d19;
+    --kind-decision: #9db4ee;
+    --kind-decision-soft: #1f2638;
+    --kind-rule: #e0a2d2;
+    --kind-rule-soft: #33202f;
+    --kind-note: #bdb8ae;
+    --kind-note-soft: #2a2824;
+    --highlight: #3b3217;
+    --syn-kw: #e0a2d2;
+    --syn-str: #9fcf8f;
+    --syn-com: #a8a298;
+    --syn-num: #e2b456;
+    --syn-fn: #9db4ee;
+    --syn-type: #f5976a;
+    --focus: #f08048;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 48px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #131210;
+  --surface: #1a1916;
+  --surface-2: #211f1c;
+  --surface-3: #2a2824;
+  --line: #2d2b27;
+  --line-strong: #3f3c36;
+  --line-input: #6f6a61;
+  --text: #ece9e2;
+  --text-2: #bdb8ae;
+  --text-3: #969086;
+  --accent: #f08048;
+  --accent-hover: #f5976a;
+  --accent-text: #1a1310;
+  --accent-soft: #3a2519;
+  --accent-line: #6d3b22;
+  --ok: #7cc38a;
+  --ok-soft: #1d2e20;
+  --warn: #e2b456;
+  --warn-soft: #33290f;
+  --danger: #f08a7e;
+  --danger-soft: #3b1d19;
+  --kind-decision: #9db4ee;
+  --kind-decision-soft: #1f2638;
+  --kind-rule: #e0a2d2;
+  --kind-rule-soft: #33202f;
+  --kind-note: #bdb8ae;
+  --kind-note-soft: #2a2824;
+  --highlight: #3b3217;
+  --syn-kw: #e0a2d2;
+  --syn-str: #9fcf8f;
+  --syn-com: #a8a298;
+  --syn-num: #e2b456;
+  --syn-fn: #9db4ee;
+  --syn-type: #f5976a;
+  --focus: #f08048;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.3), 0 24px 48px rgba(0, 0, 0, 0.5);
+}
