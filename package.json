@@ -1,34 +1,37 @@
 {
-  "name": "knovra-monorepo",
+  "name": "knovra-office",
   "version": "0.1.0",
-  "private": true,
-  "description": "Universal persistent project-intelligence layer for AI development agents",
+  "description": "Virtual office where remote and hybrid teams share one floor",
   "scripts": {
-    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
-    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
-    "infra:status": "docker compose -f infra/docker/docker-compose.yml ps",
-    "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f",
-    "dev:web": "npm --prefix apps/web run dev",
-    "dev:api": "npm --prefix apps/api run start:dev",
-    "test:all": "npm run test:contracts && npm run test:web && npm run test:api",
-    "test:web": "npm --prefix apps/web run test",
-    "test:api": "npm --prefix apps/api run test",
-    "test:contracts": "npm --prefix packages/contracts run test",
-    "lint:all": "npm --prefix apps/web run lint && npm --prefix apps/api run lint",
-    "build:all": "npm --prefix packages/contracts run build && npm --prefix packages/config run build && npm --prefix apps/web run build && npm --prefix apps/api run build"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "keywords": [
-    "ai",
-    "agents",
-    "context-engine",
-    "code-intelligence",
-    "mcp",
-    "knowledge-graph"
-  ],
-  "author": "Knovra Team",
-  "license": "Apache-2.0"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akshaykumar33/knovra.git"
+  },
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/akshaykumar33/knovra/issues"
+  },
+  "homepage": "https://github.com/akshaykumar33/knovra#readme",
+  "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  },
+  "private": true
 }

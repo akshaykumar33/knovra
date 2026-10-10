@@ -1,1 +1,0 @@
-# Knovra Web Public Assets
