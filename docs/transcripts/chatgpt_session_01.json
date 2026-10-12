@@ -1,0 +1,30 @@
+{
+  "title": "Property Graph Design & Pre-Commit Intervention",
+  "id": "chatgpt-sess-001",
+  "mapping": {
+    "turn-1": {
+      "message": {
+        "id": "cg-m1",
+        "author": { "role": "user" },
+        "content": {
+          "parts": [
+            "We decided to use ADR-002 for the Neo4j property graph schema. Also, how should we enforce the zero-defect policy?"
+          ]
+        },
+        "create_time": 1700000100
+      }
+    },
+    "turn-2": {
+      "message": {
+        "id": "cg-m2",
+        "author": { "role": "assistant" },
+        "content": {
+          "parts": [
+            "We formulated ADR-005 for the mandatory zero-defect git pre-commit intervention. Every commit must pass ruff, pytest, go vet, and cargo test before merging."
+          ]
+        },
+        "create_time": 1700000200
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package knovra.v1;
+
+option go_package = "knovra/runtime/proto/v1;knovrav1";
+
+// Health check service
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+  string version = 2;
+  int64 timestamp = 3;
+}
+
+// Event streaming
+message NormalizedAgentEvent {
+  string id = 1;
+  string type = 2;
+  string project_id = 3;
+  string agent_id = 4;
+  string session_id = 5;
+  int64 timestamp = 6;
+  string payload_json = 7;
+}

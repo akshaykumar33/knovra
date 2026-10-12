@@ -1,0 +1,91 @@
+{
+  "generatedWith": "Built-in Image Generation",
+  "purpose": "Visual concepts, not implemented features or factual product documentation",
+  "pages": [
+    {
+      "name": "home",
+      "route": "/",
+      "image": "home.png"
+    },
+    {
+      "name": "projects",
+      "route": "/projects",
+      "image": "projects.png"
+    },
+    {
+      "name": "repository",
+      "route": "/repository",
+      "image": "repository.png"
+    },
+    {
+      "name": "graph",
+      "route": "/graph",
+      "image": "graph.png"
+    },
+    {
+      "name": "context",
+      "route": "/context",
+      "image": "context.png"
+    },
+    {
+      "name": "impact",
+      "route": "/impact",
+      "image": "impact.png"
+    },
+    {
+      "name": "decisions",
+      "route": "/decisions",
+      "image": "decisions.png"
+    },
+    {
+      "name": "rules",
+      "route": "/rules",
+      "image": "rules.png"
+    },
+    {
+      "name": "sessions",
+      "route": "/sessions",
+      "image": "sessions.png"
+    },
+    {
+      "name": "agents",
+      "route": "/agents",
+      "image": "agents.png"
+    },
+    {
+      "name": "history",
+      "route": "/history",
+      "image": "history.png"
+    },
+    {
+      "name": "docs",
+      "route": "/docs",
+      "image": "docs.png"
+    },
+    {
+      "name": "architecture",
+      "route": "/architecture",
+      "image": "architecture.png"
+    },
+    {
+      "name": "providers",
+      "route": "/providers",
+      "image": "providers.png"
+    },
+    {
+      "name": "benchmarks",
+      "route": "/benchmarks",
+      "image": "benchmarks.png"
+    },
+    {
+      "name": "local-first",
+      "route": "/local-first",
+      "image": "local-first.png"
+    },
+    {
+      "name": "settings",
+      "route": "/settings",
+      "image": "settings.png"
+    }
+  ]
+}
