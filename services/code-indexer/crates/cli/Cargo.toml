@@ -1,0 +1,9 @@
+[package]
+name = "knovra-indexer-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+knovra-core = { path = "../core" }

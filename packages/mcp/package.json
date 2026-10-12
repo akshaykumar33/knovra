@@ -1,0 +1,14 @@
+{
+  "name": "@knovra/mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol tools and schemas for Knovra",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

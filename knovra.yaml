@@ -1,0 +1,79 @@
+project:
+  name: knovra
+  mode: local
+  description: Universal Code Intelligence and Context Engine for AI Coding Agents
+
+indexing:
+  exclude:
+    - node_modules/**
+    - .next/**
+    - dist/**
+    - build/**
+    - target/**
+    - bin/**
+    - coverage/**
+    - .venv/**
+    - __pycache__/**
+  languages:
+    - typescript
+    - javascript
+    - python
+    - go
+    - rust
+
+context:
+  max_token_budget: 12000
+  include_recent_changes: true
+  include_decisions: true
+  include_rules: true
+
+rules:
+  - id: rule-arch-01
+    title: Architecture Boundaries
+    category: architecture
+    severity: high
+    scope: "services/**"
+    enforcement: strict
+    instruction: >
+      Respect Knovra subsystem boundaries. Rust owns AST indexing, Go owns the runtime daemon & CLI,
+      Python owns AI semantic retrieval & context planning, and TypeScript owns the product UI.
+
+  - id: rule-sec-01
+    title: Zero Secret Context
+    category: security
+    severity: critical
+    scope: "*"
+    enforcement: strict
+    instruction: >
+      Never store, log, or embed API keys, secrets, passwords, or private keys. All text must pass
+      through secret redaction before vector embedding or prompt inclusion.
+
+  - id: rule-gov-01
+    title: Zero-Defect Git Intervention
+    category: project
+    severity: critical
+    scope: "*"
+    enforcement: strict
+    instruction: >
+      Every commit must pass all compiler checks, linter inspections, and test suites. Halt and fix
+      all errors immediately before proceeding.
+
+  - id: rule-prov-01
+    title: Mandatory Provenance
+    category: convention
+    severity: high
+    scope: "*"
+    enforcement: strict
+    instruction: >
+      Every extracted symbol, chunk, decision, or fact must retain source provenance (file path,
+      line ranges, and content hash).
+
+  - id: rule-dec-01
+    title: Non-Destructive Decision Supersession
+    category: architecture
+    severity: medium
+    scope: "docs/decisions/**"
+    enforcement: strict
+    instruction: >
+      Architectural decisions are never deleted. When replaced, mark status as superseded and link
+      supersedes/superseded_by pointers.
